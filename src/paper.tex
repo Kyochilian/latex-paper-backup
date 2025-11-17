@@ -1,0 +1,121 @@
+\documentclass[conference]{IEEEtran}   % 单栏会议模板；去 conference 选项即双栏
+\usepackage[UTF8, scheme = plain]{ctex} % 中文支持
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+% ---------------- 常用 AI 宏包 ----------------
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}   % 伪代码
+\usepackage{graphicx}
+\usepackage{booktabs}        % 三线表
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{subfigure}
+\usepackage{hyperref}
+\usepackage{cite}            % IEEE 引用风格
+\usepackage{xcolor}
+\usepackage{microtype}
+
+% ---------------- 定理环境 ----------------
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{remark}{Remark}
+
+% ---------------- 自定义命令 ----------------
+\newcommand{\ie}{\textit{i.e.}}
+\newcommand{\eg}{\textit{e.g.}}
+\newcommand{\etal}{\textit{et al.}}
+
+% ---------------- 正文开始 ----------------
+\begin{document}
+
+\title{基于动态扫描机制的Vision RWKV让医学影像分割轻量而高效}
+
+\author{%
+  \IEEEauthorblockN{sora\IEEEauthorrefmark{1},
+                    Zhendong Li\IEEEauthorrefmark{1},
+                    }
+  \IEEEauthorblockA{\IEEEauthorrefmark{1}Ningxia University\\
+                    Email: kyochilian@gmail.com}
+  \IEEEauthorblockA{\IEEEauthorrefmark{1}Ningxia University\\
+                    Email: lizhendong@nxu.edu.cn}
+}
+
+\maketitle
+
+\begin{abstract}
+
+写好Transformer的不足 RNN的不足 写该工作的主要贡献 主要干了什么 解决了什么问题 代码在哪里能复现
+\end{abstract}
+
+\begin{IEEEkeywords}
+deep learning, computer vision, segmentation, RWKV, RNN, Transformer
+\end{IEEEkeywords}
+
+\section{Introduction}
+\IEEEPARstart{S}{emantic} Segmentation 是计算机视觉中的一项重要任务。写好文章介绍。首先写语义分割，然后写医学影像分割，然后写方法迭代。
+
+neural networks (DNNs) have achieved remarkable success in various AI tasks.
+However, their enormous computational cost hinders deployment on resource-limited devices.
+Pruning redundant parameters is one of the most popular compression techniques~\cite{han2015deep}.
+
+\section{Related Work}
+\subsection{Magnitude-based Pruning}
+Han \etal~\cite{han2015deep} proposed to remove weights with small absolute values.
+
+\subsection{Dynamic Sparse Training}
+Most recently, DST~\cite{evci2020rigging} allows the sparse topology to evolve during training.
+
+\section{Methodology}
+Let $\mathcal{W}=\{W_l\}_{l=1}^L$ denote the weights of an $L$-layer network.
+Our goal is to find a sparse mask $M_l$ for each layer such that the remaining weights $W_l\odot M_l$ retain accuracy.
+
+\subsection{Dynamic Growth Criterion}
+We use the gradient magnitude as the saliency score:
+\begin{equation}
+s_{ij}^{(l)}=\left|\frac{\partial \mathcal{L}}{\partial w_{ij}^{(l)}}\right|.
+\end{equation}
+
+
+\section{Experiments}
+We evaluate DST on CIFAR-10/100 and ImageNet with ResNet-50.
+
+\begin{table}[h]
+\centering
+\caption{Top-1 accuracy (\%) on CIFAR-10 under different sparsities.}
+\begin{tabular}{lcc}
+\toprule
+Method & 90\% sparsity & 95\% sparsity \\
+\midrule
+Baseline & 93.5 & 91.2 \\
+Magnitude~\cite{han2015deep} & 92.8 & 89.7 \\
+DST (ours) & \textbf{94.1} & \textbf{92.3} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusion}
+We presented a simple yet effective DST framework that dynamically adjusts sparse connectivity during training.
+Future work includes extending DST to transformer architectures.
+
+\section*{Acknowledgment}
+This work was supported by the National Natural Science Foundation of China under Grant 62XXXXXX.
+
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{99}
+\bibitem{han2015deep}
+S.~Han, J.~Pool, J.~Tran, and W.~Dally,
+``Learning both weights and connections for efficient neural network,''
+\textit{Proc. NIPS}, 2015.
+
+\bibitem{evci2020rigging}
+U.~Evci, T.~Gale, J.~Menick, P.~S.~Castro, and E.~Elsen,
+``Rigging the lottery: Making all tickets winners,''
+\textit{Proc. ICML}, 2020.
+\end{thebibliography}
+
+
+
+\end{document}
+% ================= end of main.tex =================
