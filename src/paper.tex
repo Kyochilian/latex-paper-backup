@@ -62,19 +62,41 @@ computer vision, semantic segmentation, RWKV, Transformer, lightweight
 \end{IEEEkeywords}
 
 \section{Introduction}
-\IEEEPARstart{S}{emantic} Segmentation 是计算机视觉中的一项重要任务，医学影像分割是关键应用之一，它将复杂的医学图像分割成不同的区域，
+\IEEEPARstart{S}{emantic} Segmentation 是计算机视觉中的一项重要任务，医学影像分割是关键应用之一。它将复杂的医学图像分割成不同的区域，
 使器官、病灶及注意区域清晰可见，对于医学辅助诊断与治疗具有重要意义。
 相较于人工，使用计算机视觉技术进行辅助诊断不仅提高了诊断效率，还提升了诊断精度，因此许多方法被提出用于医学影像分割任务。
-传统的ML（机器学习）方法在研究中被广泛应用，如基于图割（Graph Cut）的方法~\cite{boykov2001interactive}，随机森林（Random Forest）~\cite{geremia2011spatial}等。
-近年来，随着FCN（Full Convolution Network）的提出~\cite{long2015fully}，深度学习方法成为图像语义分割的主流方法。
-随着Unet~\cite{ronneberger2015u}的提出，基于深度学习的分割方法占据了主导地位，通过上下采样，以及创新性地跳跃连接，使其成为了语义分割的主流框架。
+多年来，传统的ML（机器学习）方法在研究中被广泛应用，如基于图割（Graph Cut）的方法~\cite{Graph Cut}、随机森林（Random Forest）~\cite{Random Forest}、
+支持向量机(Support Vector Machine, SVM)~\cite{SVM}以及条件随机场(Conditional Random Field, CRF)~\cite{Conditional Random Field}等。
+这些方法依赖人工设计的特征提取器,在处理复杂医学图像时存在局限性，
+在面对高分辨率的医学图像时,计算效率低下,制约了其在临床实践中的应用。
+
+近年来，随着CNN(Convolution Natural Network)~\cite{CNN}、FCN(Full Convolution Network)的提出~\cite{FCN}，深度学习方法逐渐代替了传统机器学习方法，
+语义分割方法的网络深度、特征提取均有了较大提高。
+随着Unet~\cite{Unet}的提出，基于深度学习的分割方法占据了主导地位，通过创新性的U型架构，使其成为了语义分割的主流框架，涌现了Unet++~\cite{unet++}、
+Attention-Unet~\cite{attetion-unet}等方法。
+2017年，Google提出的Transformer~\cite{Transformer}在自然语言处理（NLP）领域have maked深远影响，which为视觉领域带来了ViT(Vision Transformer)~\cite{ViT} in 2020，
+使得计算机视觉领域拥有了全局注意力(Global Attention)与自注意力机制(Self-Attention)~\cite{Transformer}，makes better for全局语义信息提取，改善了CNN的不足~\cite{lack for CNN}。
+**等人提出了TransUnet~\cite{TransUnet}，将Unet与ViT结合起来，使得医学图像分割方法的精度大大提高。
+
+目前，主流的方法主要遵循TransUnet的思路，在上述深度学习方法中作修改~\cite{分割方法综述}，将CNN作为局部注意力提取~\cite{EViT-Unet}，为了进行更高精度的分辨，
+将Transformer作为把握全局特征的模块~\cite{SwinTransformer}，采用类似Unet的上下采样与skip connection的结构，达到期望的分割效果。
+然而，医学图像具有低对比度、高分辨率、目标边界模糊等诸多问题~\cite{feature of medical img}，对于自注意力机制来说缺乏友好，往往需要花费大量的参数来提取低对比度医学特征，
+牺牲了时间与空间性能~\cite{lack of Transformer on medical image}，
+同时自注意力机制具有平方复杂度，高分辨率的医学图像会使计算复杂度大大增加，高参数网络也不适宜部署在医院等边缘设备，这些限制了Transformer在医学图像上的直接应用。
+
+一些研究人员改善这种情况。****等人提出了Linear Transformer~\cite{Linear Transformer}，**等人在20xx年提出了Mamba~\cite{Mamba}模型，不同于Transformer的框架，
+他们均通过将自注意力机制的复杂度改为线性，从而缓解计算复杂度问题。然而，事实证明，线性复杂度的Transformer变体总会牺牲分割精度与准确率，而Mamba模型的长序列建模（SSL）
+也不适用于视觉问题~\cite{do we really need mamba in vision problem}。鉴于医学影像中 3D 体数据、MRI与CT等高分辨率数据普遍存在，且存在高精度的像素级分割要求，
+实践中还需要考虑医院边缘设备的部署问题，如何平衡精度与效率、参数与性能，成为急需解决的问题。
+
+RWKV~\cite{rwkv}的出现引起了我们的关注。其在NLP领域的线性复杂度与不属于Transformer的全局注意力机制，使其有价值迁移到视觉任务上。Vision RWKV~\cite{visionrwkv}
+尝试了该问题，并针对图像输入进行了结构改进，展现出优异的计算效率与模型精度。在高分辨率的医学图像任务下，RWKV优于其他Transformer变体与Mamba模型，处理医学图像输入时的推理速度
+更高，且效果更好~\cite{rwkv-sam}。RWKV的扫描缺点，我们称其为贪吃蛇效应。
+若提取到更深层次，RWKV容易将模糊的特征边缘分割，进行分片扫描，导致序列上下文 无法有效进行像素级分割，而这是医学图像分割的要求之一。
 
 
 写好文章介绍。首先写语义分割，然后写医学影像分割，然后写方法迭代。
 
-neural networks (DNNs) have achieved remarkable success in various AI tasks.
-However, their enormous computational cost hinders deployment on resource-limited devices.
-Pruning redundant parameters is one of the most popular compression techniques~\cite{han2015deep}.
 
 \section{Related Work}
 \subsection{Magnitude-based Pruning}
@@ -120,6 +142,9 @@ This work was supported by the National Natural Science Foundation of China unde
 
 \bibliographystyle{IEEEtran}
 \begin{thebibliography}{99}
+
+
+
 \bibitem{han2015deep}
 S.~Han, J.~Pool, J.~Tran, and W.~Dally,
 ``Learning both weights and connections for efficient neural network,''
@@ -129,6 +154,29 @@ S.~Han, J.~Pool, J.~Tran, and W.~Dally,
 U.~Evci, T.~Gale, J.~Menick, P.~S.~Castro, and E.~Elsen,
 ``Rigging the lottery: Making all tickets winners,''
 \textit{Proc. ICML}, 2020.
+
+
+\bibitem{FCN}
+
+\bibitem{Graph Cut}
+
+\bibitem{Random Forest}
+
+\bibitem{SVM}
+
+\bibitem{Conditional Random Field}
+
+\bibitem{CNN}
+
+\bibitem{FCN}
+
+\bibitem{Unet}
+
+\bibitem{Transformer}
+
+\bibitem{ViT}
+
+
 \end{thebibliography}
 
 
