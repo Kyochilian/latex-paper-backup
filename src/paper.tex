@@ -82,23 +82,52 @@ Attention-Unet~\cite{attetion-unet}等方法。
 将Transformer作为把握全局特征的模块~\cite{SwinTransformer}，采用类似Unet的上下采样与skip connection的结构，达到期望的分割效果。
 然而，医学图像具有低对比度、高分辨率、目标边界模糊等诸多问题~\cite{feature of medical img}，对于自注意力机制来说缺乏友好，往往需要花费大量的参数来提取低对比度医学特征，
 牺牲了时间与空间性能~\cite{lack of Transformer on medical image}，
-同时自注意力机制具有平方复杂度，高分辨率的医学图像会使计算复杂度大大增加，高参数网络也不适宜部署在医院等边缘设备，这些限制了Transformer在医学图像上的直接应用。
+同时自注意力机制具有平方复杂度，高分辨率的医学图像会使计算复杂度大大增加，高参数网络也不适宜部署在医院等边缘设备，这些限制了Transformer在医学图像上的直接应用~\cite{transunet}
+~\cite{h2former}。
 
-一些研究人员改善这种情况。****等人提出了Linear Transformer~\cite{Linear Transformer}，**等人在20xx年提出了Mamba~\cite{Mamba}模型，不同于Transformer的框架，
-他们均通过将自注意力机制的复杂度改为线性，从而缓解计算复杂度问题。然而，事实证明，线性复杂度的Transformer变体总会牺牲分割精度与准确率，而Mamba模型的长序列建模（SSL）
+一些研究人员研究改善这种情况。****等人提出了Linear Transformer~\cite{Linear Transformer}，**等人在20xx年提出了Mamba~\cite{Mamba}模型，不同于Transformer的框架，
+他们均通过将自注意力机制的复杂度改为线性，从而缓解计算复杂度问题。然而，事实证明，线性复杂度的Transformer变体总会牺牲分割精度与准确率，而Mamba模型的长序列建模（SSM）
 也不适用于视觉问题~\cite{do we really need mamba in vision problem}。鉴于医学影像中 3D 体数据、MRI与CT等高分辨率数据普遍存在，且存在高精度的像素级分割要求，
 实践中还需要考虑医院边缘设备的部署问题，如何平衡精度与效率、参数与性能，成为急需解决的问题。
 
-RWKV~\cite{rwkv}的出现引起了我们的关注。其在NLP领域的线性复杂度与不属于Transformer的全局注意力机制，使其有价值迁移到视觉任务上。Vision RWKV~\cite{visionrwkv}
-尝试了该问题，并针对图像输入进行了结构改进，展现出优异的计算效率与模型精度。在高分辨率的医学图像任务下，RWKV优于其他Transformer变体与Mamba模型，处理医学图像输入时的推理速度
-更高，且效果更好~\cite{rwkv-sam}。RWKV的扫描缺点，我们称其为贪吃蛇效应。
-若提取到更深层次，RWKV容易将模糊的特征边缘分割，进行分片扫描，导致序列上下文 无法有效进行像素级分割，而这是医学图像分割的要求之一。
+Recurrent Weighted Key-Value(RWKV)~\cite{rwkv}的出现引起了我们的关注。其在NLP领域的线性复杂度注意力机制，不同于Transformer的结构，使其有价值迁移到视觉任务上。
+Vision RWKV(VRWKV)~\cite{visionrwkv}尝试了该问题，并针对图像输入进行了结构改进，展现出优异的计算效率与模型精度，**等人提出了BSBP-RWKV~\cite{BSBP-RWKV}，
+首次将RWKV应用于医学图像任务，一些研究如RWKV-Unet~\cite{RWKV-UNet}将VRWKV与Unet迁移到医学图像分割任务上。在高分辨率的医学图像任务下，
+RWKV优于其他Transformer变体与Mamba模型，处理医学图像输入时的推理速度更高，且效果更好~\cite{rwkv-sam}。
+
+作为一款线性注意力模型，尽管RWKV拥有良好的计算效率与精度，但迁移到图像任务上，还是有不可避免的问题。RWKV本质是沿序列建模的状态空间式结构,
+针对离散数据(如自然语言处理)的处理过程是固定的，自注意力的处理方式也是一维的。面对连续且二维的图像，基于RWKV的图像处理方法是将图像分块，
+并延展为一维，导致了空间连续性上的破坏~\cite{zigrir}，我们称其为贪吃蛇效应~\ref{fig:贪吃蛇效应}。
+RWKV的扫描方式是固定的，在图像任务中，注意力的权重往往动态且多变，固定的扫描方式往往会将注意力分片~\cite{visionrwkv}。(如图~\ref{fig:图RWKV的空间连续性破坏})。
+若提取到更深层次，图像的特征更容易模糊，RWKV容易将模糊的特征边缘分离，进行分片扫描，导致容易导致器官边缘、细小病灶（如微小息肉、早期病变区）分割不精细，
+而这是医学图像分割的要求之一(如图~\ref{fig:RWKV分片将深层次的边缘分割开来})。
+同时，医学方向涉及三维数据，在三维医学图像中，边界分割、注意力分片的现象将会更为突出，这为RWKV向医学领域的适配带来了挑战~\cite{med-urwkv}。
 
 
-写好文章介绍。首先写语义分割，然后写医学影像分割，然后写方法迭代。
+为此，很多工作进行了改进。U-RWKV提出了方向自适应 RWKV 模块~\cite{urwkv}，改进了RWKV的扫描方式，使其不仅仅局限于一维层面的注意力叠加。Zig-RiR~\cite{zigrir}提出了
+ZigZag的扫描方案，试图解决RWKV扫描的空间连续性问题。然而，其带来了诸多问题：扫描缺乏对图像的动态调整，导致其训练过程不稳定，且不同器官之间的精度存在较大差异
+~\ref{fig:ZigRiR与URWKV的训练loss曲线不稳定};同时，贪吃蛇效应仍然存在；两者工作的上采样过于简单，导致恢复特征分辨率时的精度不足，无法满足医学图像像素级分割的要求。
+
+我们的研究致力于解决该问题。受到Vision RWKV~\cite{vrwkv}以及URWKV~\cite{urwkv}的启发，我们提出了一种基于RWKV的U型架构invictus，该架构具备完备的编码器-解码器，
+在保持了RWKV的长程依赖和线性复杂度的同时，增强了局部细节的表达与分割的精度。具体来说，我们采用了Bi-WKV，一种线性注意力，作为我们的注意力核心~\cite{vrwkv}，
+并提出了Dynamic scan，一种动态扫描机制，根据不同层次的编码器动态地调整顺序和方向。
+为了解决RWKV的空间动态连续性问题，invictus将一个维度的模块设置为全局block与局部block。随着编码器的层次增加，输入特征的注意力将会逐渐集中，
+图像的分块数也会随着层数的增加而减少~\ref{fig:不同层次的图像分块}。在一个模块的前端，
+我们使用全局block进行初步的特征提取。随后，采用残差机制~\cite{resnet}将提取后的全局权重与原特征加和，局部block根据加和后的权重，动态地调整扫描顺序与扫描方向，进行局部
+的特征提取。同时，为了缓解贪吃蛇效应~\ref{fig:贪吃蛇效应}，我们改进了四项token位移~\cite{vrwkv}，根据已确定的扫描机制，动态调整扫描位移的权重与方向。
+
+待写：
+上采样问题
+轻量化问题 所谓的动态？
 
 
-\section{Related Work}
+
+
+加入RWKV扫描后的热力图，表示注意力在图像上的衰减
+
+
+
+\section{Related Works}
 \subsection{Magnitude-based Pruning}
 Han \etal~\cite{han2015deep} proposed to remove weights with small absolute values.
 
