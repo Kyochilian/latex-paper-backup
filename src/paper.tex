@@ -144,14 +144,27 @@ ZigZag的扫描方案，试图解决RWKV扫描的空间连续性问题。然而�
 
 \section{Related Works}
 \subsection{医学图像分割}
-目前，基于深度学习的医学图像分割网络是主流，且很多的先进方法均基于CNN和Transformer的
+目前，基于深度学习的医学图像分割网络是主流，且很多的先进方法均基于CNN和Transformer的变体得来。
+
+一些方法是纯净的CNN。
+
+一些方法是纯净的Transformer。
+
+一些方法将CNN与Transformer结合。
+
+目前最常用的架构仍为U型架构。
+
 改进~\cite{Medical Image Segmentation: A Comprehensive Review of Deep Learning Methods}。
+\subsection{RWKV}
+介绍RWKV与Vision RWKV，和RWKV的核心注意力机制。
+
 
 
 \subsection{Dynamic Sparse Training}
 Most recently, DST~\cite{evci2020rigging} allows the sparse topology to evolve during training.
 
 \section{Methods}
+\subsection{Stage Scan Structure}
 Let $\mathcal{W}=\{W_l\}_{l=1}^L$ denote the weights of an $L$-layer network.
 Our goal is to find a sparse mask $M_l$ for each layer such that the remaining weights $W_l\odot M_l$ retain accuracy.
 
