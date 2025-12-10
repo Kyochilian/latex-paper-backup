@@ -68,18 +68,19 @@ computer vision, semantic segmentation, RWKV, Transformer, lightweight
 多年来，传统的ML（机器学习）方法在研究中被广泛应用，如基于图割（Graph Cut）的方法~\cite{Graph Cut}、随机森林（Random Forest）~\cite{Random Forest}、
 支持向量机(Support Vector Machine, SVM)~\cite{SVM}以及条件随机场(Conditional Random Field, CRF)~\cite{Conditional Random Field}等。
 这些方法依赖人工设计的特征提取器,在处理复杂医学图像时存在局限性，
-在面对高分辨率的医学图像时,计算效率低下,制约了其在临床实践中的应用。
+由于图像存在模糊、噪声、对比度低等问题，传统方法的准确性和鲁棒性受到限制。
 
-近年来，随着CNN(Convolution Natural Network)~\cite{CNN}、FCN(Full Convolution Network)的提出~\cite{FCN}，深度学习方法逐渐代替了传统机器学习方法，
+近年来，随着FCN(Full Convolution Network)~\cite{FCN}、CNN(Convolution Natural Network)~\cite{CNN}的提出，深度学习方法逐渐代替了传统机器学习方法，
 语义分割方法的网络深度、特征提取均有了较大提高。
 随着Unet~\cite{Unet}的提出，基于深度学习的分割方法占据了主导地位，通过创新性的U型架构，使其成为了语义分割的主流框架，涌现了Unet++~\cite{unet++}、
 Attention-Unet~\cite{attetion-unet}等方法。
 2017年，Google提出的Transformer~\cite{Transformer}在自然语言处理（NLP）领域have maked深远影响，which为视觉领域带来了ViT(Vision Transformer)~\cite{ViT} in 2020，
 使得计算机视觉领域拥有了全局注意力(Global Attention)与自注意力机制(Self-Attention)~\cite{Transformer}，makes better for全局语义信息提取，改善了CNN的不足~\cite{lack for CNN}。
-**等人提出了TransUnet~\cite{TransUnet}，将Unet与ViT结合起来，使得医学图像分割方法的精度大大提高。
+**等人提出了TransUnet~\cite{TransUnet}，将Unet与CNN和Transformer结合起来，使得医学图像分割方法的精度大大提高。
 
 目前，主流的方法主要遵循TransUnet的思路，在上述深度学习方法中作修改~\cite{分割方法综述}，将CNN作为局部注意力提取~\cite{EViT-Unet}，为了进行更高精度的分辨，
-将Transformer作为把握全局特征的模块~\cite{SwinTransformer}，采用类似Unet的上下采样与skip connection的结构，达到期望的分割效果。
+将Transformer作为把握全局特征的模块，采用类似Unet的上下采样与skip connection的结构，达到期望的分割
+效果~\cite{Medical Image Segmentation: A Comprehensive Review of Deep Learning Methods}。
 然而，医学图像具有低对比度、高分辨率、目标边界模糊等诸多问题~\cite{feature of medical img}，对于自注意力机制来说缺乏友好，往往需要花费大量的参数来提取低对比度医学特征，
 牺牲了时间与空间性能~\cite{lack of Transformer on medical image}，
 同时自注意力机制具有平方复杂度，高分辨率的医学图像会使计算复杂度大大增加，高参数网络也不适宜部署在医院等边缘设备，这些限制了Transformer在医学图像上的直接应用~\cite{transunet}
@@ -146,22 +147,44 @@ ZigZag的扫描方案，试图解决RWKV扫描的空间连续性问题。然而�
 \subsection{医学图像分割}
 目前，基于深度学习的医学图像分割网络是主流，且很多的先进方法均基于CNN和Transformer的变体得来。
 
-一些方法是纯净的CNN。
+\textit{1. 纯净的CNN。}最具代表性的为Unet~\cite{Unet}。UNet的优势在于编码器-解码器的结构，并通过跳
+跃连接有效减少信息在传输过程中的损失，实现对复杂医学图像中细微结构的精准分割。部分研究者对Unet进行了改进，例如
+UNet++、UNet3+、3D UNET和Attention Unet等等。但是，卷积核的有限感受野难以捕捉远程关系和远程关系，限制了模型的分割性能。
+同时，在面对大尺寸医学图像或三维图像时，UNet的性能往往不足，导致细节的丢失和全局能力的不足。
 
-一些方法是纯净的Transformer。
+\textit{2. 纯净的Transformer。}Transformer的核心机制self-attention使其能够把握全局上下文关系，该机制被大量应用至计算机视觉领域，例如ViT。
+Transformer克服了CNN在处理长程依赖关系时的不足，并将每个图像块作为输入序列传递到 Transformer 编码器，以获得图像的全局表示。Liu~\cite{swintransformer}等人设计了
+SwinTransformer架构，该架构针对图像分割和目标检测任务设计，并在医学影像分割上取得了不错的成绩。Cao~\cite{swinunet}等人将Unet与Transformer架构融合，
+设计了Swin-Unet，提升了医学影像的分割精度和泛化能力。Lin~\cite{dstransunet}等人进行了进一步的改进，采用双尺度编码器子网来提取不同语义尺度的特征，
+建立不同尺度之间的依赖关系。采用纯净Transformer的模型对医学图像的精度和鲁棒性较好，但其复杂度较高，精细局部特征提取能力不足，限制了其在医学图像中的应用。
 
-一些方法将CNN与Transformer结合。
 
-目前最常用的架构仍为U型架构。
+\textit{3. 将CNN与Transformer结合，}利用CNN在捕捉局部特征上的优越性以及Transformer对全局依赖性的处理能力。具有代表性的是TransUNet~\cite{transunet}、
+CoTr~\cite{cotr}、UTNet~\cite{utnet}和Transfuse~\cite{transfuse}网络等。这些网络通过各种串行、并行的方式将CNN与Transformer结合到一起，
+整合了全局与局部特征，使精度进一步提高。该方法的核心问题是：模型计算复杂度较高。Transformer 模块处理图像任务需要将图像序列化，形成较长的序列。
+尽管 ViT 提出了图像块序列，但图像切割后计算量仍然较大；混合模型需要同时维护UNet的卷积层和高复杂度的自注意力机制，虽然增强了细节的
+特征提取能力，但模型的参数和推理速度均显著降低，无法部署在医院的大量边缘及低算力设备中，应用有限。
+
 
 改进~\cite{Medical Image Segmentation: A Comprehensive Review of Deep Learning Methods}。
+
+
+\subsection{线性注意力}
+线性注意力致力于打破二次方级的注意力复杂度瓶颈，使注意力机制更加高效，并催生出了一系列Transformer变体和非Transformer架构。
+
+\textit{1. Transformer变体。}一些针对于Transformer的改进如Linear Transformer~\cite{lineartransformer}，提出了特征映射的概念，用以替代Softmax，
+将Attention机制视为Linear RNN的过程。**等人提出了Performer~\cite{performer}，引入了正交随机特征（Orthogonal Random Features, ORF），
+使其接近Softmax的效果。二者均通过对softmax函数效果的改进，进而达到线性注意力的目的。以此为基础，Han~\cite{flatten transformer}等人提出了Flatten Transformer，
+设计了一种聚焦线性注意力（Focused Linear Attention），改善了空间特征的完整性，完善了线性注意力在视觉领域的应用。
+
+\textit{2. the new wave。}如经典的mamba~\cite{mamba}模型，其引入了选择性扫描机制（Selective Scan），让模型能够根据输入内容动态压缩记忆。
+U-Mamba~\cite{umamba}、Swin-UMamba~\cite{swinumamba}、VM-UNet~\cite{vmunet}等方法探索了Mamba模型在医学图像分割领域的运用，将Mamba模型与SSM的思想
+整合进了分割领域当中，并进行了针对性的优化。然而，SSM的核心机制致使其无法有效建模初窗口之外的全局上下文信息
+
 \subsection{RWKV}
 介绍RWKV与Vision RWKV，和RWKV的核心注意力机制。
 
 
-
-\subsection{Dynamic Sparse Training}
-Most recently, DST~\cite{evci2020rigging} allows the sparse topology to evolve during training.
 
 \section{Methods}
 \subsection{Stage Scan Structure}
