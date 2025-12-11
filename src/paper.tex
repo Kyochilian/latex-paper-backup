@@ -88,7 +88,7 @@ Attention-Unet~\cite{attetion-unet}等方法。
 
 一些研究人员研究改善这种情况。****等人提出了Linear Transformer~\cite{Linear Transformer}，**等人在20xx年提出了Mamba~\cite{Mamba}模型，不同于Transformer的框架，
 他们均通过将自注意力机制的复杂度改为线性，从而缓解计算复杂度问题。然而，事实证明，线性复杂度的Transformer变体总会牺牲分割精度与准确率，而Mamba模型的长序列建模（SSM）
-也不适用于视觉问题~\cite{do we really need mamba in vision problem}。鉴于医学影像中 3D 体数据、MRI与CT等高分辨率数据普遍存在，且存在高精度的像素级分割要求，
+也不适用于视觉问题~\cite{mamba out}。鉴于医学影像中 3D 体数据、MRI与CT等高分辨率数据普遍存在，且存在高精度的像素级分割要求，
 实践中还需要考虑医院边缘设备的部署问题，如何平衡精度与效率、参数与性能，成为急需解决的问题。
 
 Recurrent Weighted Key-Value(RWKV)~\cite{rwkv}的出现引起了我们的关注。其在NLP领域的线性复杂度注意力机制，不同于Transformer的结构，使其有价值迁移到视觉任务上。
@@ -179,11 +179,18 @@ CoTr~\cite{cotr}、UTNet~\cite{utnet}和Transfuse~\cite{transfuse}网络等。�
 
 \textit{2. the new wave。}如经典的mamba~\cite{mamba}模型，其引入了选择性扫描机制（Selective Scan），让模型能够根据输入内容动态压缩记忆。
 U-Mamba~\cite{umamba}、Swin-UMamba~\cite{swinumamba}、VM-UNet~\cite{vmunet}等方法探索了Mamba模型在医学图像分割领域的运用，将Mamba模型与SSM的思想
-整合进了分割领域当中，并进行了针对性的优化。然而，SSM的核心机制致使其无法有效建模初窗口之外的全局上下文信息
+整合进了分割领域当中，并进行了针对性的优化。然而，SSM的核心机制致使其无法有效建模初窗口之外的全局上下文信息，基于SSM的视觉模型与最先进的卷积模型和基于注意力的模型相比，
+表现不佳，导致其并不适合视觉任务~\cite{mamba out}，且其运行速度往往以准确率为代价。
 
 \subsection{RWKV}
-介绍RWKV与Vision RWKV，和RWKV的核心注意力机制。
+最近提出的Receptance Weighted Key Value(RWKV) ~\cite{RWKV}是不同于Transformer的线性架构，擅长处理长序列关系与自回归任务，在NLP领域效果优良，
+并催生出在视觉领域的一系列运用~\cite{vrwkv}~\cite{RSRWKV}。同时，一些研究人员，也探索了RWKV在医学分割领域的运用~\cite{urwkv}~\cite{rwkv unet}~\cite{zigrir}。
 
+以此为契机，我们继续完善专精于医学分割的RWKV。经过研究，我们发现，RWKV不适宜直接运用至分割任务中，因为原始的因果感受野的机制，在图像任务中表现不好，
+同时，各种针对图像分割的改进，没有缓解贪吃蛇效应\ref{fig:贪吃蛇效应}，这导致边界分割模糊，没有达到像素级分割的要求\ref{fig:对比图，分割的边界锯齿明显}，
+全局注意力的上下文关系也比较割裂。为了解决该问题，我们提出了Stage scan structure，一种基于Stage的RWKV扫描方法，并将一次处理分为全局block和局部block，
+以此，针对特征信息的大小，进行精准的提取，保留了空间连续性。同时，我们大幅改进了Q-shift，四向位移机制，使其动态调整位移方向，有效缓解贪吃蛇效应。额外地，在原有的
+Bi-WKV基础上，我们利用低分辨率的WKV实现进一步的轻量化。
 
 
 \section{Methods}
@@ -191,7 +198,7 @@ U-Mamba~\cite{umamba}、Swin-UMamba~\cite{swinumamba}、VM-UNet~\cite{vmunet}等
 Let $\mathcal{W}=\{W_l\}_{l=1}^L$ denote the weights of an $L$-layer network.
 Our goal is to find a sparse mask $M_l$ for each layer such that the remaining weights $W_l\odot M_l$ retain accuracy.
 
-\subsection{Dynamic Growth Criterion}
+\subsection{Low-Resolution WKV}
 We use the gradient magnitude as the saliency score:
 \begin{equation}
 s_{ij}^{(l)}=\left|\frac{\partial \mathcal{L}}{\partial w_{ij}^{(l)}}\right|.
