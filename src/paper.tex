@@ -1,23 +1,28 @@
 \documentclass[conference]{IEEEtran}   % 单栏会议模板；去 conference 选项即双栏
+
 \usepackage[UTF8, scheme = plain]{ctex} % 中文支持
+
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
-
-% ---------------- 常用 AI 宏包 ----------------
-\usepackage{amsmath, amssymb, amsthm}
-\usepackage{algorithm}
-\usepackage{algpseudocode}   % 伪代码
-\usepackage{graphicx}
-\usepackage{booktabs}        % 三线表
-\usepackage{multirow}
-\usepackage{array}
-\usepackage{subfigure}
-\usepackage{hyperref}
-\usepackage{cite}            % IEEE 引用风格
-\usepackage{xcolor}
 \usepackage{microtype}
 
-% ---------------- 定理环境 ----------------
+% --------- 数学与定理 ---------
+\usepackage{amsmath, amssymb, amsthm}
+% --------- 图、表、算法环境 ---------
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{subcaption}
+
+\usepackage{algorithm}
+\usepackage{algpseudocode}   % 伪代码
+% --------- 颜色、引用、超链接 ---------
+\usepackage{cite}
+\usepackage{xcolor}
+
+\usepackage[hidelinks]{hyperref}
+% ---------------- 定理环境 ----------------P
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
 \newtheorem{remark}{Remark}
@@ -32,14 +37,12 @@
 
 \title{基于Stage扫描机制的Vision RWKV让医学影像分割轻量而高效}
 
-\author{%
-  \IEEEauthorblockN{sora\IEEEauthorrefmark{1},
-                    Zhendong Li\IEEEauthorrefmark{1},
-                    }
-  \IEEEauthorblockA{\IEEEauthorrefmark{1}Ningxia University\\
-                    Email: kyochilian@gmail.com}
-  \IEEEauthorblockA{\IEEEauthorrefmark{1}Ningxia University\\
-                    Email: lizhendong@nxu.edu.cn}
+\author{
+\IEEEauthorblockN{
+sora\IEEEauthorrefmark{1},
+Zhendong~Li\IEEEauthorrefmark{1}}
+\IEEEauthorblockA{\IEEEauthorrefmark{1}Ningxia University \\
+Email: kyochilian@gmail.com, lizhendong@nxu.edu.cn}
 }
 
 \maketitle
@@ -175,7 +178,7 @@ CoTr~\cite{cotr}、UTNet~\cite{utnet}和Transfuse~\cite{transfuse}网络等。�
 \textit{1. Transformer变体。}一些针对于Transformer的改进如Linear Transformer~\cite{lineartransformer}，提出了特征映射的概念，用以替代Softmax，
 将Attention机制视为Linear RNN的过程。**等人提出了Performer~\cite{performer}，引入了正交随机特征（Orthogonal Random Features, ORF），
 使其接近Softmax的效果。二者均通过对softmax函数效果的改进，进而达到线性注意力的目的。以此为基础，Han~\cite{flatten transformer}等人提出了Flatten Transformer，
-设计了一种聚焦线性注意力（Focused Linear Attention），改善了空间特征的完整性，完善了线性注意力在视觉领域的应用。
+设计了一种聚焦线性注意力(Focused Linear Attention)，改善了空间特征的完整性，完善了线性注意力在视觉领域的应用。
 
 \textit{2. the new wave。}如经典的mamba~\cite{mamba}模型，其引入了选择性扫描机制（Selective Scan），让模型能够根据输入内容动态压缩记忆。
 U-Mamba~\cite{umamba}、Swin-UMamba~\cite{swinumamba}、VM-UNet~\cite{vmunet}等方法探索了Mamba模型在医学图像分割领域的运用，将Mamba模型与SSM的思想
@@ -189,24 +192,39 @@ U-Mamba~\cite{umamba}、Swin-UMamba~\cite{swinumamba}、VM-UNet~\cite{vmunet}等
 以此为契机，我们继续完善专精于医学分割的RWKV。经过研究，我们发现，RWKV不适宜直接运用至分割任务中，因为原始的因果感受野的机制，在图像任务中表现不好，
 同时，各种针对图像分割的改进，没有缓解贪吃蛇效应\ref{fig:贪吃蛇效应}，这导致边界分割模糊，没有达到像素级分割的要求\ref{fig:对比图，分割的边界锯齿明显}，
 全局注意力的上下文关系也比较割裂。为了解决该问题，我们提出了Stage scan structure，一种基于Stage的RWKV扫描方法，并将一次处理分为全局block和局部block，
-以此，针对特征信息的大小，进行精准的提取，保留了空间连续性。同时，我们大幅改进了Q-shift，四向位移机制，使其动态调整位移方向，有效缓解贪吃蛇效应。额外地，在原有的
+以此，针对特征信息的大小，进行精准的提取，保留了空间连续性。同时，我们改进了Q-shift，四向位移机制，使其动态调整位移方向，有效缓解贪吃蛇效应。额外地，在原有的
 Bi-WKV基础上，我们利用低分辨率的WKV实现进一步的轻量化。
 
 
 \section{Methods}
+如图\ref{fig:main-network}所示，我们整体的网络采用了U型架构进行设计，分为下采样、上采样和跳跃连接。其中核心的特征提取在上采样中。整体而言，对于一张待分割的二维医学图像，首先经过stem，
+在网络的初始部分，以进行早期的特征提取与图像分块。其次，网络将分块的图像送进encoder中，经过全局SS和局部SS，不断增加网络深度并提取分割特征。在此期间，基于Stage的扫描机制和Dynamic Q-
+shift将灵活处理分割精度与边界。在上采样过程中，（参考Gemini的思路），最终输出完整的分割结果。
+\subsection{Stem与预处理}
+注意stem模块，使用之前的AViT-UNet。
+直接使用原始像素pixel-level会导致序列过长，提高计算度和低频噪声的出现~\cite{vit}，因此要对输入的图片进行预处理。我们利用卷机的局部归纳偏置，高效地提取初步特征。
+
 \subsection{Stage Scan Structure}
-Let $\mathcal{W}=\{W_l\}_{l=1}^L$ denote the weights of an $L$-layer network.
-Our goal is to find a sparse mask $M_l$ for each layer such that the remaining weights $W_l\odot M_l$ retain accuracy.
+因为在深层，特征图尺寸变小，语义信息更丰富，此时更需要模型具备理解全局上下文的能力。
 
+可以在encoder的过程中，将特征图分解为block，层次越深，block越大，层次越浅，block越多、越小。扫描机制可以借鉴ZigRiR。
+
+Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为
+$$O=(2TC)$$
+
+可以采用对角线扫描
 \subsection{Low-Resolution WKV}
-We use the gradient magnitude as the saliency score:
-\begin{equation}
-s_{ij}^{(l)}=\left|\frac{\partial \mathcal{L}}{\partial w_{ij}^{(l)}}\right|.
-\end{equation}
+主要介绍主要的自注意力机制块，和对应的池化，
 
+
+\subsection{Dynamic Q-shift}
+缓解贪吃蛇效应。
+Q- shift对于不在扫描路径上的token，占比大一些
+
+\subsection{上采样}
 
 \section{Experiments}
-We evaluate DST on CIFAR-10/100 and ImageNet with ResNet-50.
+实验结果。与ZigRiR一致。
 
 \begin{table}[h]
 \centering
@@ -231,7 +249,41 @@ This work was supported by the National Natural Science Foundation of China unde
 
 \bibliographystyle{IEEEtran}
 \begin{thebibliography}{99}
-\bibliography{refs}
+
+
+
+\bibitem{han2015deep}
+S.~Han, J.~Pool, J.~Tran, and W.~Dally,
+``Learning both weights and connections for efficient neural network,''
+\textit{Proc. NIPS}, 2015.
+
+\bibitem{evci2020rigging}
+U.~Evci, T.~Gale, J.~Menick, P.~S.~Castro, and E.~Elsen,
+``Rigging the lottery: Making all tickets winners,''
+\textit{Proc. ICML}, 2020.
+
+
+\bibitem{FCN}
+
+\bibitem{Graph Cut}
+
+\bibitem{Random Forest}
+
+\bibitem{SVM}
+
+\bibitem{Conditional Random Field}
+
+\bibitem{CNN}
+
+\bibitem{FCN}
+
+\bibitem{Unet}
+
+\bibitem{Transformer}
+
+\bibitem{ViT}
+
+
 \end{thebibliography}
 
 
