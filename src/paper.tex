@@ -207,16 +207,33 @@ GeLU函数进行激活。这个步骤会进行两次。在两步卷积过程中�
 ~\cite{resnet}将输入图像分枝，送入分枝的3x3卷积中，与一个batch norm，再与原模块加权，在深度不变的情况下增强了特征传递。
 
 定义一张输入二维图像为$X_{in} \in \mathbb{R}^{H \times W \times C_{in}}$。对于医学CT/MRI图像来说，通常$H=W=256, C_{in}=1$。
-stem模块的卷积核大小$k=3$,步长$s=2$，经过stem模块后，初始特征图$F_{0} \in \mathbb{R}^{\frac{H}{4} \times \frac{W}{4} \times C_{0}}$，其中通道数经过模块扩展为$C_{0}=64$。
+stem模块的卷积核大小$k=3$,步长$s=2$，经过stem模块后，初始特征图$F_{0} \in \mathbb{R}^{\frac{H}{4} \times \frac{W}{4} \times C_{0}}$，$C_{0}=64$。
 可以看出，该模块的总下采样率 $S=4$。
 
-对于global branch与local branch，我们采用不同的序列化方法。
+图像的初步序列化过程被集中到Stage scan structure中。
+
 
 
 \subsection{Stage Scan Structure}
-因为在深层，特征图尺寸变小，语义信息更丰富，此时更需要模型具备理解全局上下文的能力。
+初步处理后，我们将特征图分为global branch和local branch，送入Stage Scan Structure(SSS)模块中。SSS模块由多个Stage组成，每个Stage包含多个Bi-WKV块。
 
-可以在encoder的过程中，将特征图分解为block，层次越深，block越大，层次越浅，block越多、越小。扫描机制可以借鉴ZigRiR。
+\textit{1. Multi-Granularity Windows.}
+特征图进入encoder后，我们对其进行分块，以便于进行特征提取。对于global branch与local branch，我们采用不同的分块方法。
+global branch旨在捕捉长距离依赖，window size较大，block数量较少，序列短；local branch旨在捕捉局部细节，window size较小，block数量较多，
+序列长\ref{fig:global branch和local branch}。这种不同Granularity的方法使得模型能够在不同层次上捕捉图像的全局与局部特征，提升了分割的精度。
+
+可以看出，global batch的初始窗口分块可以表示为
+\begin{equation}F_g \to g_{1}, g_{2}, \dots, g_{m}\end{equation}
+其中m代表分块数量，$g_{i} \in \mathbb{R}^{w_g \times w_g \times C}$，$w_g$代表global branch的窗口大小。
+
+同样地，llocal batch的初始窗口分块可以表示为\begin{equation}F_l \to l_{1}, l_{2}, \dots, l_{n}\end{equation}其中n代表分块数量，$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C}$，$w_l$代表local branch的窗口大小。
+
+local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{k}\end{equation}
+其中$k$为缩放系数，通常取2或4。在本文中，缩放系数被选择为4。
+
+\textit{2. Stage-wise Window Mechanism.}
+因为在深层，特征图尺寸变小，语义信息更丰富，此时更需要模型具备理解全局上下文的能力。
+随着网络加深（Stage $1 \to 4$），分辨率降低，全局分支逐渐退化为全图注意力，局部分支的感受野相对增大。
 
 Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为
 $$O=(2TC)$$
