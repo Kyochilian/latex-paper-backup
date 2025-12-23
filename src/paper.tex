@@ -218,6 +218,7 @@ stem模块的卷积核大小$k=3$,步长$s=2$，经过stem模块后，初始特�
 初步处理后，我们将特征图分为global branch和local branch，送入Stage Scan Structure(SSS)模块中。SSS模块由多个Stage组成，每个Stage包含多个Bi-WKV块。
 
 \textit{1. Multi-Granularity Windows.}
+
 特征图进入encoder后，我们对其进行分块，以便于进行特征提取。对于global branch与local branch，我们采用不同的分块方法。
 global branch旨在捕捉长距离依赖，window size较大，block数量较少，序列短；local branch旨在捕捉局部细节，window size较小，block数量较多，
 序列长\ref{fig:global branch和local branch}。这种不同Granularity的方法使得模型能够在不同层次上捕捉图像的全局与局部特征，提升了分割的精度。
@@ -226,17 +227,21 @@ global branch旨在捕捉长距离依赖，window size较大，block数量较少
 \begin{equation}F_g \to g_{1}, g_{2}, \dots, g_{m}\end{equation}
 其中m代表分块数量，$g_{i} \in \mathbb{R}^{w_g \times w_g \times C}$，$w_g$代表global branch的窗口大小。
 
-同样地，llocal batch的初始窗口分块可以表示为\begin{equation}F_l \to l_{1}, l_{2}, \dots, l_{n}\end{equation}其中n代表分块数量，$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C}$，$w_l$代表local branch的窗口大小。
+同样地，local batch的初始窗口分块可以表示为\begin{equation}F_l \to l_{1}, l_{2}, \dots, l_{n}\end{equation}其中n代表分块数量，
+$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C}$，$w_l$代表local branch的窗口大小。
 
 local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{k}\end{equation}
-其中$k$为缩放系数，通常取2或4。在本文中，缩放系数被选择为4。
+其中$k$为$g_{m}$相对于$l_{n}$的缩放系数，通常取2或4。在本文中，缩放系数被选择为4。
 
 \textit{2. Stage-wise Window Mechanism.}
-因为在深层，特征图尺寸变小，语义信息更丰富，此时更需要模型具备理解全局上下文的能力。
-随着网络加深（Stage $1 \to 4$），分辨率降低，全局分支逐渐退化为全图注意力，局部分支的感受野相对增大。
+
+在stage深层语义中，特征图尺寸随着stage的增加逐步变小，语义信息变得越来越丰富，此时更需要模型具备理解全局上下文的能力~\ref{？}。
+在SSS模块中，我们设计了Stage-wise Window Mechanism，根据不同Stage的编码器动态地调整global branch与local branch的窗口大小与分块数量。
+随着网络加深（$\text{Stage} \in \{1, 4\}$），分辨率降低，全局分支逐渐退化为全图注意力，局部分支的感受野相对增大。
 https://chatgpt.com/share/e/69429443-6fb0-800b-9848-bf9ae52816b7
-Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为
-$$O=(2TC)$$
+Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为\begin{equation}O=(2TC)\end{equation}
+
+
 
 可以采用对角线扫描
 \subsection{Low-Resolution WKV}
