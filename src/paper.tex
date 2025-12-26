@@ -225,20 +225,34 @@ global branch旨在捕捉长距离依赖，window size较大，block数量较少
 
 可以看出，global batch的初始窗口分块可以表示为
 \begin{equation}F_g \to g_{1}, g_{2}, \dots, g_{m}\end{equation}
-其中m代表分块数量，$g_{i} \in \mathbb{R}^{w_g \times w_g \times C}$，$w_g$代表global branch的窗口大小。
+其中m代表分块数量，$g_{i} \in \mathbb{R}^{w_g \times w_g \times C}$，$w_g$代表global branch的窗口行列。
 
 同样地，local batch的初始窗口分块可以表示为\begin{equation}F_l \to l_{1}, l_{2}, \dots, l_{n}\end{equation}其中n代表分块数量，
-$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C}$，$w_l$代表local branch的窗口大小。
+$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C}$，$w_l$代表local branch的窗口行列。
 
 local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{k}\end{equation}
-其中$k$为$g_{m}$相对于$l_{n}$的缩放系数，通常取2或4。在本文中，缩放系数被选择为4。
+其中$k$为$g_{m}$相对于$l_{n}$的缩放系数，通常取2或4。在本文中，缩放系数被选择为2。
 
 \textit{2. Stage-wise Window Mechanism.}
 
-在stage深层语义中，特征图尺寸随着stage的增加逐步变小，语义信息变得越来越丰富，此时更需要模型具备理解全局上下文的能力~\ref{？}。
 在SSS模块中，我们设计了Stage-wise Window Mechanism，根据不同Stage的编码器动态地调整global branch与local branch的窗口大小与分块数量。
-随着网络加深（$\text{Stage} \in \{1, 4\}$），分辨率降低，全局分支逐渐退化为全图注意力，局部分支的感受野相对增大。
-https://chatgpt.com/share/e/69429443-6fb0-800b-9848-bf9ae52816b7
+
+我们设计SWM的理由是，随着网络层数加深（$\text{Stage} \in \{1, 4\}$），特征图的$H$与$W$逐渐减小，分辨率降低，语义信息增强，此时需要更多地关注全局上下文信息；
+而在浅层语义中，特征图的$H$与$W$较大，分辨率高，噪声较多，需要更多地关注局部细节信息。如图\ref{:stage层数，图像的变化}所示，
+现有的RWKV变体如Zig RiR~\cite{zigrir}与URWKV~\cite{urwkv}均采用
+固定的扫描方式，没有适应变化的stage，导致模型在不同stage下的表现不佳，无法更好地提取特征。
+
+为此，全局与局部分枝的窗口，需要根据Stage进行调整。在浅层语义中，特征较为分散，噪声与信息较多，需要更多的分块进行扫描提取特征；
+在stage深层语义中，特征图尺寸随着stage的增加逐步变小，语义信息变得越来越丰富，此时更需要模型具备理解全局上下文的能力。
+
+以层数stage为变量。由于缩放系数$k=2$，设全局块的空间尺寸在所有 stage 上固定为$w_g \times w_g, \quad w_g = 8.$
+局部块的空间尺寸为$w_l \times w_l, \quad w_l = 4.$。则在第 $i\in \{1, 4\}$ 个 stage 上，全局块和局部块分别将特征图$F_s$划分为
+\begin{equation}
+    G_s = 
+\end{equation}
+\begin{equation}w_{g}^{i} = \frac{H}{2^{i} \cdot S_g}, \quad w_{l}^{i} = \frac{H}{2^{i} \cdot S_l}\end{equation}
+其中 $H$ 是输入图像的高度（宽度相同）。随着 $i$ 的增加，$w_{g}^{i}$ 和 $w_{l}^{i}$ 逐渐减小，反映了特征图尺寸的变化。
+
 Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为\begin{equation}O=(2TC)\end{equation}
 
 
