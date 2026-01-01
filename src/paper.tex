@@ -230,9 +230,10 @@ global branch旨在捕捉长距离依赖，window size较大，block数量较少
 
 同样地，local batch的初始窗口分块可以表示为\begin{equation}F_{0}\xrightarrow{\;w_l\;}\{\ell_{1},\ell_{2},\dots,\ell_{m_\ell}\}\end{equation}
 其中$m_\ell=\frac{H_0}{w_l}\cdot\frac{W_0}{w_l}.$代表分块数量，$ \ell_{i} \in \mathbb{R}^{w_l \times w_l \times C_0}$，$w_l$代表local branch的窗口行列。
+$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C_i}$，$w_l$代表local branch的窗口行列。
 
 local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{\kappa}\end{equation}
-其中$\kappa$为$g_{m}$相对于$l_{n}$的缩放系数，通常取2或4。在本文中，缩放系数被选择为2。
+其中$\kappa$为$g_{m}$相对于$l_{n}$的缩放系数。
 
 \textit{2. Stage-wise Window Mechanism.}
 
@@ -260,6 +261,8 @@ Local Branch可以表示为
 \begin{equation}
     F_i \xrightarrow{\text{Win}(\cdot; w_l)} \ell_{i,1}, \ell_{i,2}, \dots, \ell_{i,L_i^\ell}, \quad L_i^\ell \triangleq L_i(w_l), \quad \ell_{i,t} \in \mathbb{R}^{w_l \times w_l \times C_i}.
 \end{equation}
+
+
 
 Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为\begin{equation}O=(2TC)\end{equation}
 
