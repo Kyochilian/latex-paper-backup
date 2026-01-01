@@ -215,23 +215,24 @@ stem模块的卷积核大小$k=3$,步长$s=2$，经过stem模块后，初始特�
 
 
 \subsection{Stage Scan Structure}
-初步处理后，我们将特征图分为global branch和local branch，送入Stage Scan Structure(SSS)模块中。SSS模块由多个Stage组成，每个Stage包含多个Bi-WKV块。
+初步处理后，我们将特征图分为global branch和local branch，送入Stage Scan Structure(SSS)模块中。SSS模块由多个Stage串联组成，每个Stage包含若干Bi-WKV块。
 
 \textit{1. Multi-Granularity Windows.}
 
-特征图进入encoder后，我们对其进行分块，以便于进行特征提取。对于global branch与local branch，我们采用不同的分块方法。
+特征图$F_i$进入encoder后，我们对其进行分块，以便于进行特征提取。对于global branch与local branch，我们采用不同窗口粒度的分块方法。
 global branch旨在捕捉长距离依赖，window size较大，block数量较少，序列短；local branch旨在捕捉局部细节，window size较小，block数量较多，
-序列长\ref{fig:global branch和local branch}。这种不同Granularity的方法使得模型能够在不同层次上捕捉图像的全局与局部特征，提升了分割的精度。
+序列长\ref{fig:global branch和local branch}。这种不同Granularity的方法使得模型能够在不同尺度上捕捉图像的全局与局部特征，提升了分割的精度。
 
-可以看出，global batch的初始窗口分块可以表示为
-\begin{equation}F_g \to g_{1}, g_{2}, \dots, g_{m}\end{equation}
-其中m代表分块数量，$g_{i} \in \mathbb{R}^{w_g \times w_g \times C}$，$w_g$代表global branch的窗口行列。
+可以看出，对于stem输入的同一张原始图像$F$，global branch的初始窗口分块可以表示为
+\begin{equation}F_{0}\xrightarrow{\;w_g\;}\{g_{1},g_{2},\dots,g_{m_g}\}\end{equation}
+其中$m_g=\frac{H_0}{w_g}\cdot\frac{W_0}{w_g}.$代表分块数量，$g_{i} \in \mathbb{R}^{w_g \times w_g \times C_0}$，$w_g$代表global branch的窗口行列。
 
-同样地，local batch的初始窗口分块可以表示为\begin{equation}F_l \to l_{1}, l_{2}, \dots, l_{n}\end{equation}其中n代表分块数量，
-$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C_i}$，$w_l$代表local branch的窗口行列。
+
+同样地，local batch的初始窗口分块可以表示为\begin{equation}F_{0}\xrightarrow{\;w_l\;}\{\ell_{1},\ell_{2},\dots,\ell_{m_\ell}\}\end{equation}
+其中$m_\ell=\frac{H_0}{w_l}\cdot\frac{W_0}{w_l}.$代表分块数量，$ \ell_{i} \in \mathbb{R}^{w_l \times w_l \times C_0}$，$w_l$代表local branch的窗口行列。
 
 local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{\kappa}\end{equation}
-其中$\kappa$为$g_{m}$相对于$l_{n}$的缩放系数，通常取2或4。在本文中，缩放系数被选择为2。
+其中$\kappa$为$g_{m}$相对于$l_{n}$的缩放系数。
 
 \textit{2. Stage-wise Window Mechanism.}
 
@@ -246,7 +247,7 @@ local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$�
 在stage深层语义中，特征图尺寸随着stage的增加逐步变小，语义信息变得越来越丰富，此时更需要模型具备理解全局上下文的能力。
 
 以层数stage为变量。由于缩放系数$\kappa=2$，设全局块的空间尺寸在所有 stage 上固定为$w_g \times w_g, \quad w_g = 8.$
-局部块的空间尺寸为$w_l \times w_l, \quad w_l = 4.$。则在第 $i\in \{1, 4\}$ 个 stage 上，全局块和局部块分别将特征图$F_s$划分为
+局部块的空间尺寸为$w_l \times w_l, \quad w_l = 4.$。则在第 $i\in \{1,..., 4\}$ 个 stage 上，全局块和局部块分别将特征图$F_s$划分为
 \begin{equation}G_i = \frac{H_i}{w},w \in \{w_g, w_l\}\end{equation}
 个非重叠的blocks，其中 $H_i = W_i$ ，为输入图像的高宽度,序列长度（总块数）$L_i$即为$G_i$的平方。
 
