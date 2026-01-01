@@ -52,7 +52,7 @@ Email: kyochilian@gmail.com, lizhendong@nxu.edu.cn}
 然而，在需要高精度与高分辨率的医学图像分割中，Transformer计算复杂度高，应用有限。
 最近的RWKV模型降低了空间聚合复杂度并具备全局处理能力，但其在视觉领域存在长程建模羸弱的问题，贪吃蛇效应突出，同时循坏嵌套机制在分割领域中的解码性能不足。
 为了解决这些问题，我们提出了一种基于Vision RWKV的分割框架RWKV-SSS，该框架在具有较低复杂度的同时具备了全局建模能力。
-为了增强RWKV的长程空间连续性，我们设计了一种Stage扫描机制，该机制将图像分为全局block与局部block，根据不同Stage的编码器动态地调整扫描权重，
+为了增强RWKV的长程空间连续性，我们设计了一种Stage扫描机制，该机制将图像分为全局block与局部block，根据不同Stage的编码器，相应调整扫描比例，
 将全局与局部特征融合，大大提升了模型的精度。
 同时，我们在解码器中构建了上采样模块---，该模块改良了RWKV的循环嵌套机制，提升了重建多尺度特征的能力。
 我们还采用多种方法进一步降低SSS的计算复杂度，实现模型的轻量化。（LRFormer 低分辨率自注意力，池化QKV等等）
@@ -115,7 +115,7 @@ ZigZag的扫描方案，试图解决RWKV扫描的空间连续性问题。然而�
 
 我们的研究致力于解决该问题。受到Vision RWKV~\cite{vrwkv}以及URWKV~\cite{urwkv}的启发，我们提出了一种基于RWKV的U型架构Stage Scan Segmentation，
 该架构具备完备的编码器-解码器，在保持了RWKV的长程依赖和线性复杂度的同时，增强了局部细节的表达与分割的精度。具体来说，我们采用了Bi-WKV，一种线性注意力，
-作为我们的注意力核心~\cite{vrwkv}，并提出了stage scan，一种基于encoder层次的扫描机制，根据不同层次的编码器动态地调整扫描方向与权重。
+作为我们的注意力核心~\cite{vrwkv}，并提出了stage scan，一种基于encoder层次的扫描机制，根据不同层次的编码器，调整扫描方向与比例。
 为了解决RWKV的空间连续性问题，SSS将一个维度的模块设置为全局block与局部block，分别提取全局与局部特征。在一开始，输入特征的分辨率
 与H、W较大，特征比较分散，噪声较多，需要我们进行更多的分块扫描。随着编码器的Stage增加，输入特征的细节将会更多更集中，
 图像的分块数也会随着层数的增加而减少~\ref{fig:不同层次的图像分块}，以此把握全局的注意力。在一个模块的前端，
@@ -208,7 +208,7 @@ GeLU函数进行激活。这个步骤会进行两次。在两步卷积过程中�
 
 定义一张输入二维图像为$X_{in} \in \mathbb{R}^{H \times W \times C_{in}}$。对于医学CT/MRI图像来说，通常$H=W=256, C_{in}=1$。
 stem模块的卷积核大小$k=3$,步长$s=2$，经过stem模块后，初始特征图$F_{0} \in \mathbb{R}^{\frac{H}{4} \times \frac{W}{4} \times C_{0}}$，$C_{0}=64$。
-可以看出，该模块的总下采样率 $S=4$。
+可以看出，该模块的总下采样率 $S=4$，Stage $\text{i} \in \{1,...,4\}$。
 
 图像的初步序列化过程被集中到Stage scan structure中。
 
@@ -228,16 +228,16 @@ global branch旨在捕捉长距离依赖，window size较大，block数量较少
 其中m代表分块数量，$g_{i} \in \mathbb{R}^{w_g \times w_g \times C}$，$w_g$代表global branch的窗口行列。
 
 同样地，local batch的初始窗口分块可以表示为\begin{equation}F_l \to l_{1}, l_{2}, \dots, l_{n}\end{equation}其中n代表分块数量，
-$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C}$，$w_l$代表local branch的窗口行列。
+$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C_i}$，$w_l$代表local branch的窗口行列。
 
-local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{k}\end{equation}
-其中$k$为$g_{m}$相对于$l_{n}$的缩放系数，通常取2或4。在本文中，缩放系数被选择为2。
+local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{\kappa}\end{equation}
+其中$\kappa$为$g_{m}$相对于$l_{n}$的缩放系数，通常取2或4。在本文中，缩放系数被选择为2。
 
 \textit{2. Stage-wise Window Mechanism.}
 
-在SSS模块中，我们设计了Stage-wise Window Mechanism，根据不同Stage的编码器动态地调整global branch与local branch的窗口大小与分块数量。
+在SSS模块中，我们设计了Stage-wise Window Mechanism，根据不同Stage的编码器动态地调整global branch与local branch的窗口比例与分块数量。
 
-我们设计SWM的理由是，随着网络层数加深（$\text{Stage} \in \{1, 4\}$），特征图的$H$与$W$逐渐减小，分辨率降低，语义信息增强，此时需要更多地关注全局上下文信息；
+我们设计SWM的理由是，随着网络层数加深，特征图的$H$与$W$逐渐减小，分辨率降低，语义信息增强，此时需要更多地关注全局上下文信息；
 而在浅层语义中，特征图的$H$与$W$较大，分辨率高，噪声较多，需要更多地关注局部细节信息。如图\ref{:stage层数，图像的变化}所示，
 现有的RWKV变体如Zig RiR~\cite{zigrir}与URWKV~\cite{urwkv}均采用
 固定的扫描方式，没有适应变化的stage，导致模型在不同stage下的表现不佳，无法更好地提取特征。
@@ -245,13 +245,20 @@ local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$�
 为此，全局与局部分枝的窗口，需要根据Stage进行调整。在浅层语义中，特征较为分散，噪声与信息较多，需要更多的分块进行扫描提取特征；
 在stage深层语义中，特征图尺寸随着stage的增加逐步变小，语义信息变得越来越丰富，此时更需要模型具备理解全局上下文的能力。
 
-以层数stage为变量。由于缩放系数$k=2$，设全局块的空间尺寸在所有 stage 上固定为$w_g \times w_g, \quad w_g = 8.$
+以层数stage为变量。由于缩放系数$\kappa=2$，设全局块的空间尺寸在所有 stage 上固定为$w_g \times w_g, \quad w_g = 8.$
 局部块的空间尺寸为$w_l \times w_l, \quad w_l = 4.$。则在第 $i\in \{1, 4\}$ 个 stage 上，全局块和局部块分别将特征图$F_s$划分为
+\begin{equation}G_i = \frac{H_i}{w},w \in \{w_g, w_l\}\end{equation}
+个非重叠的blocks，其中 $H_i = W_i$ ，为输入图像的高宽度,序列长度（总块数）$L_i$即为$G_i$的平方。
+
+总而言之，在第$i$个stage上，Global Branch可以表示为
 \begin{equation}
-    G_s = 
+    F_i \xrightarrow{\text{Win}(\cdot; w_g)} g_{i,1}, g_{i,2}, \dots, g_{i,L_i^g}, \\
+    \quad L_i^g \triangleq L_i(w_g), \quad g_{i,t} \in \mathbb{R}^{w_g \times w_g \times C_i};
 \end{equation}
-\begin{equation}w_{g}^{i} = \frac{H}{2^{i} \cdot S_g}, \quad w_{l}^{i} = \frac{H}{2^{i} \cdot S_l}\end{equation}
-其中 $H$ 是输入图像的高度（宽度相同）。随着 $i$ 的增加，$w_{g}^{i}$ 和 $w_{l}^{i}$ 逐渐减小，反映了特征图尺寸的变化。
+Local Branch可以表示为
+\begin{equation}
+    F_i \xrightarrow{\text{Win}(\cdot; w_l)} \ell_{i,1}, \ell_{i,2}, \dots, \ell_{i,L_i^\ell}, \quad L_i^\ell \triangleq L_i(w_l), \quad \ell_{i,t} \in \mathbb{R}^{w_l \times w_l \times C_i}.
+\end{equation}
 
 Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为\begin{equation}O=(2TC)\end{equation}
 
