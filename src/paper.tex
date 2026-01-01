@@ -232,7 +232,7 @@ global branch旨在捕捉长距离依赖，window size较大，block数量较少
 其中$m_\ell=\frac{H_0}{w_l}\cdot\frac{W_0}{w_l}.$代表分块数量，$ \ell_{i} \in \mathbb{R}^{w_l \times w_l \times C_0}$，$w_l$代表local branch的窗口行列。
 
 local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{\kappa}\end{equation}
-其中$\kappa$为$g_{m}$相对于$l_{n}$的缩放系数。
+其中$\kappa$为$g_{m}$相对于$l_{n}$的缩放系数，通常取2或4。在本文中，缩放系数被选择为2。
 
 \textit{2. Stage-wise Window Mechanism.}
 
