@@ -247,21 +247,54 @@ local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$�
 为此，全局与局部分枝的窗口，需要根据Stage进行调整。在浅层语义中，特征较为分散，噪声与信息较多，需要更多的分块进行扫描提取特征；
 在stage深层语义中，特征图尺寸随着stage的增加逐步变小，语义信息变得越来越丰富，此时更需要模型具备理解全局上下文的能力。
 
-以层数stage为变量。由于缩放系数$\kappa=2$，设全局块的空间尺寸在所有 stage 上固定为$w_g \times w_g, \quad w_g = 8.$
-局部块的空间尺寸为$w_l \times w_l, \quad w_l = 4.$。则在第 $i\in \{1,..., 4\}$ 个 stage 上，全局块和局部块分别将特征图$F_s$划分为
+以层数stage $i^\star$为变量。设全局窗口边长在所有stage上固定为$w_g=8$。为实现Stage-wise自适应，我们采用分段式比例调度$\kappa(i)$，从而令局部窗口$w_l(i)=w_g/\kappa(i)$随stage变化。
+公式如下：
+\begin{equation}
+\kappa(i) =
+\begin{cases}
+4, & i\le i^\star,\\
+2, & i> i^\star,   
+\end{cases}
+\qquad
+w_l(i)=\frac{w_g}{\kappa(i)}.
+\end{equation}
+则在第 $i\in \{1,..., 4\}$ 个 stage 上，全局块和局部块分别将特征图$F_s$划分为
 \begin{equation}G_i = \frac{H_i}{w},w \in \{w_g, w_l\}\end{equation}
 个非重叠的blocks，其中 $H_i = W_i$ ，为输入图像的高宽度,序列长度（总块数）$L_i$即为$G_i$的平方。
 
 总而言之，在第$i$个stage上，Global Branch可以表示为
 \begin{equation}
-    F_i \xrightarrow{\text{Win}(\cdot; w_g)} g_{i,1}, g_{i,2}, \dots, g_{i,L_i^g}, \\
-    \quad L_i^g \triangleq L_i(w_g), \quad g_{i,t} \in \mathbb{R}^{w_g \times w_g \times C_i};
+    F_i \xrightarrow{\;w_g\;} \{g_{i,1},\dots,g_{i,L_i^g}\},\qquad 
+L_i^g=\frac{H_i}{w_g}\cdot\frac{W_i}{w_g}.
 \end{equation}
 Local Branch可以表示为
 \begin{equation}
-    F_i \xrightarrow{\text{Win}(\cdot; w_l)} \ell_{i,1}, \ell_{i,2}, \dots, \ell_{i,L_i^\ell}, \quad L_i^\ell \triangleq L_i(w_l), \quad \ell_{i,t} \in \mathbb{R}^{w_l \times w_l \times C_i}.
+    F_i \xrightarrow{\;w_l(i)\;} \{\ell_{i,1},\dots,\ell_{i,L_i^\ell}\},\qquad 
+L_i^\ell=\frac{H_i}{w_l(i)}\cdot\frac{W_i}{w_l(i)}.
+\end{equation}
+明显地，$F$代表输入的特征图，$L$代表序列长度，即分块的总数。
+
+\textit{3. Scan.}
+
+在不同尺度的特征图上，Bi-WKV~\cite{vrwkv}进行特征提取。在Vision RWKV中，Bi-WKV包含两个WKV模块，分别沿水平与垂直方向进行扫描。
+用公式表示为
+
+\begin{equation}
+\mathrm{Bi\text{-}WKV}(K,V)_t =
+\frac{
+\textstyle\sum_{i=0,i\neq t}^{T-1}
+\exp\!\left(-\frac{|t-i|-1}{T}w + k_i\right)v_i
++ \exp(u+k_t)v_t
+}{
+\textstyle\sum_{i=0,i\neq t}^{T-1}
+\exp\!\left(-\frac{|t-i|-1}{T}w + k_i\right)
++ \exp(u+k_t)
+}
 \end{equation}
 
+然而，传统的sweep scan会破坏空间连续性，导致贪吃蛇效应~\ref{fig:贪吃蛇效应}。在扫描过程中，BI-WKV只能看到扫描路径上的token，无法在二维空间感知
+其他token的信息，也就破坏了网络的空间建模与特征提取能力。
+ZigZag~\cite{zigrir}扫描方式虽然通过连续的Z字形扫描缓解了空间连续性问题，但对于最重要的，无法看见扫描路径外的token，贪吃蛇效应依然存在。
 
 
 Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为\begin{equation}O=(2TC)\end{equation}
