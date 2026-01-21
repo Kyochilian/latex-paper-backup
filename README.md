@@ -6,9 +6,9 @@ GitHub repo for LaTeX paper writings.<br>
 | # | Task / Paper | Status | Start | Deadline | Notes |
 |---|--------------|--------|-------|----------|-------|
 | 1 | **paper** AViT-UNet | ✅ Done | 2025-07 | 2025-07 | Accepted in JuUESTC 2025 |
-| 2 | **paper** MedSeg with Vision RWKV| 🔄 Writing | 2026-01 | 2025-11 | Now writing in LaTeX |
-| 3 | **code** SpatailGlue| 📅 Planned | 2026-02 | 2025-11 | Target: recurrent |
-| 4 | **paper** Cell clustering| 📅 Planned | 2026-02 | 2025-12 | research paper in Cell clustering |
+| 2 | **paper** MedSeg with Vision RWKV| 🔄 Writing | 2025-11 | 2026-01 | Now writing in LaTeX |
+| 3 | **code** SpatailGlue| 📅 Planned | 2025-11 | 2026-02 | Target: recurrent |
+| 4 | **paper** Cell clustering| 📅 Planned | 2025-12 | 2026-02 | research paper in Cell clustering |
 
 Legend:  
 ✅ Done 🔄 In Progress 📅 Planned
@@ -30,39 +30,10 @@ TexDocuments/
 └── README.md     # this file
 ```
 
-## Git Ignore List
-```
-.vscode/
-.gitignore
-.DS_Store
-*.aux
-*.log
-*.fls
-*.fdb_latexmk
-*.synctex.gz
-*.out
-*.toc
-*.bbl
-*.blg
-.DS_Store
-```
-> upload .PDF file.
+## VS Code Extensions
 
-## Required VS Code Extensions (macOS)
-
-Install inside VS Code → Extensions (`⇧⌘X`):
-
-| Extension ID               | Description                     |
-| -------------------------- | ------------------------------- |
-| `James-Yu.latex-workshop`  | LaTeX Workshop |
-| `ms-vscode.vscode-json`    | Built-in JSON support           |
-
-Optional but handy:
-
-| Extension ID               | Description                     |
-| -------------------------- | ------------------------------- |
-| `streetsidesoftware.code-spell-checker` | Spell check |
-| `jlelong.latex-workshop-snippets`       | Extra snippets |
+- `James-Yu.latex-workshop` - LaTeX Workshop
+- `streetsidesoftware.code-spell-checker` - Spell check (optional)
 
 ## Minimal `.vscode/settings.json`
 

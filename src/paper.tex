@@ -130,7 +130,7 @@ ZigZag的扫描方案，试图解决RWKV扫描的空间连续性问题。然而�
 
 1. 使用VRWKV作为分割的核心方法，达到了线性复杂度与注意力精度的平衡；
 
-2. 提出了基于Stage的Scan方法，缓解了贪吃蛇效应，and改进了上采样，有效提取全局特征与局部特征；
+2. 提出了基于Stage的Scan方法，缓解了贪吃蛇效应，有效提取全局特征与局部特征；
 
 3. 在对多个2d以及3d数据集中，SSS的效果优于目前许多最先进的方法，同时参数量降低了20\%,GPU占用降低了23\%~\ref{fig:资源占用与GPU占用对比图}。
 
@@ -276,47 +276,70 @@ L_i^\ell=\frac{H_i}{w_l(i)}\cdot\frac{W_i}{w_l(i)}.
 
 \textit{3. Scan.}
 
-在不同尺度的特征图上，Bi-WKV~\cite{vrwkv}进行特征提取。在Vision RWKV中，Bi-WKV包含两个WKV模块，分别沿水平与垂直方向进行扫描。
-用公式表示为
+许多线性注意力机制，在计算权重时，依赖 token 的一维序列距离$|t-i|$，这使得它们对序列的方向和顺序非常敏感。
+在一张二维图$\mathbf{F}\in\mathbb{R}^{H\times W\times C}$，当其被序列化为token序列时，会产生大量一维序列中相近，但空间二维远离的现象，
+称之为伪近邻（false neighbors）。注意力机制学习到大量的伪近邻token，在高权重区域混入不符合二维局部连续性的关系，由此产生只有一维连续性，
+但没有二维连续性的贪吃蛇效应~\ref{fig:贪吃蛇效应}。
 
+在 Zig-RiR 中，核心空间混合依赖 Bi-WKV。ZigZag~\cite{zigrir}扫描方式,通过蛇形扫描缓解了空间连续性问题，但最重要的，二维特征序列化后，贪吃蛇效应依然存在。
+为此，我们提出了两种解决方案：\textbf{1.Hilbert扫描；2.Dynamic Q-shift。}
+
+在不同尺度的特征图上，Bi-WKV~\cite{vrwkv}进行特征提取。在Vision RWKV中，Bi-WKV包含两个WKV模块，分别沿水平与垂直方向进行扫描。
+在时间步 $t$ 时，生成的双向加权键值聚合结果$wkv_t$，用公式表示为
 \begin{equation}
-\mathrm{Bi\text{-}WKV}(K,V)_t =
-\frac{
-\textstyle\sum_{i=0,i\neq t}^{T-1}
-\exp\!\left(-\frac{|t-i|-1}{T}w + k_i\right)v_i
-+ \exp(u+k_t)v_t
-}{
-\textstyle\sum_{i=0,i\neq t}^{T-1}
-\exp\!\left(-\frac{|t-i|-1}{T}w + k_i\right)
-+ \exp(u+k_t)
-}
+\begin{aligned}
+wkv_t &= \text{Bi-WKV}(K_s, V_s)_t \\
+&= \frac{\sum_{i=0, i \neq t}^{T-1} e^{-(|t-i|-1)/T \cdot w + k_i} v_i + e^{u+k_t} v_t}{\sum_{i=0, i \neq t}^{T-1} e^{-(|t-i|-1)/T \cdot w + k_i} + e^{u+k_t}}
+\end{aligned}
+\label{eq:bi-wkv}
+\end{equation}
+其中，$K_s$ 和 $V_s$ 分别对应输入序列的键（Key）与值（Value）矩阵；$w$ 是位置相关的衰减因子（Decay factor），用于控制空间或时间距离对权重的影响；
+$u$ 代表当前位置的增益系数（Bonus factor）；$T$ 为序列的总长度，用于对距离项进行归一化处理。
+
+如式\ref{eq:bi-wkv}所示，Bi-WKV 的权重，依赖 token 在一维序列中的相对距离，即为$|t-i|$.
+若 $|t-i|$ 小的 token 在二维平面上也相互邻近，则 Bi-WKV 的强权重区域主要聚合真实空间近邻信息；反之，若短序列窗口在二维上跨越较远距离，则会在高权重区域引入大量伪近邻（false neighbors），表现为只有一维连续性而缺乏二维连续性的“贪吃蛇效应”。
+
+不同于之字扫描与蛇形扫描方式，我们使用 \textbf{Hilbert 空间填充曲线（Hilbert space-filling curve）}作为扫描顺序，以更好地对齐 Bi-WKV 的序列衰减结构与图像的二维连续性。
+
+我们使用Hilbert扫描方式~\cite{hilbert}替代常规的行优先（raster）或简单蛇形扫描。
+Hilbert是一种空间填充曲线，在不同尺度上具有递归结构，使得序列上的连续片段往往对应二维上的一个或少数几个紧凑小方块，减少了伪近邻现象；
+在离散网格上，Hilbert是一条连续的遍历路径，相邻序号的点在二维上通常是邻接的，避免了换行导致的跳跃\ref{fig:各种扫描方式对比的图像，包括传统，S字，对角线}。
+
+
+如图所示，Hilbert扫描的具体公式可以表示为
+\begin{equation}
+    待写
 \end{equation}
 
-然而，传统的sweep scan会破坏空间连续性，导致贪吃蛇效应~\ref{fig:贪吃蛇效应}。在扫描过程中，BI-WKV只能看到扫描路径上的token，无法在二维空间感知
-其他token的信息，也就破坏了网络的空间建模与特征提取能力。
+其中。。。代表。。。，。。。代表。。。
 
-ZigZag~\cite{zigrir}扫描方式虽然通过连续的S字形扫描缓解了空间连续性问题，但对于最重要的，无法看见扫描路径外的token，贪吃蛇效应依然存在。
-为此，我们提出了两种解决方案：1、对角线扫描；2、Dynamic Q-shift。
-对角线扫描的优势在于，能够同时捕捉水平与垂直方向的信息，进一步缓解空间连续性\ref{fig:各种扫描方式对比的图像，包括传统，S字，对角线}。
-实验表明，在医学图像分割任务中，对角线扫描优于传统的扫描方式以及S字形扫描
+实验表明，在医学图像分割任务中，Hilbert扫描优于传统的扫描方式以及S字形扫描
 ~\ref{fig:各种扫描方式对比的可视化实验结果与列表对比图}。 
 
-对角线扫描的过程可以表示为
 
 
 
 Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为\begin{equation}O=(2TC)\end{equation}
 
+\subsection{Dynamic Q-shift}
+虽然改进了Hilbert扫描方式，但二维近邻的空间是割裂的。贪吃蛇仅仅在序列化时改变了爬行方式，而并没有改善更高维的信息交换。
 
+在Vision RWKV中，采用了四向位移机制(Q-shift)~\cite{vrwkv}，通过对token进行四个方向的位移，增强了空间连续性。
+这是对网络从一维语义像二维图像的改进，但是，正如上文所说，这种扫描方式，对于序列的方向与顺序较为敏感。同一 张2D 图像，更换一种扫描顺序，相对空间位置会显著变化，从而影响空间连续性。
+就像贪吃蛇游戏中，蛇头的移动方向决定了蛇身的走向，而无法关系周围的空间结构与顺序。
+
+在本文网络中，为了缓解贪吃蛇效应，我们对Q-shift进行了改良，使其动态调整位移方向。
+
+
+缓解贪吃蛇效应。
+Q- shift对于不在扫描路径上的token，占比大一些
 
 可以采用对角线扫描
 \subsection{Low-Resolution WKV}
 主要介绍主要的自注意力机制块，和对应的池化，
 
 
-\subsection{Dynamic Q-shift}
-缓解贪吃蛇效应。
-Q- shift对于不在扫描路径上的token，占比大一些
+
 
 \subsection{上采样}
 
