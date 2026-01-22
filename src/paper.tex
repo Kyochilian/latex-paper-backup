@@ -257,6 +257,7 @@ local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$�
 \end{cases}
 \qquad
 w_l(i)=\frac{w_g}{\kappa(i)}.
+\label{kappa}
 \end{equation}
 则在第 $i\in \{1,..., 4\}$ 个 stage 上，全局块和局部块分别将特征图$F_s$划分为
 \begin{equation}G_i = \frac{H_i}{w},w \in \{w_g, w_l\}\end{equation}
@@ -266,11 +267,13 @@ w_l(i)=\frac{w_g}{\kappa(i)}.
 \begin{equation}
     F_i \xrightarrow{\;w_g\;} \{g_{i,1},\dots,g_{i,L_i^g}\},\qquad 
 L_i^g=\frac{H_i}{w_g}\cdot\frac{W_i}{w_g}.
+\label{global-branch}
 \end{equation}
 Local Branch可以表示为
 \begin{equation}
     F_i \xrightarrow{\;w_l(i)\;} \{\ell_{i,1},\dots,\ell_{i,L_i^\ell}\},\qquad 
 L_i^\ell=\frac{H_i}{w_l(i)}\cdot\frac{W_i}{w_l(i)}.
+\label{local-branch}
 \end{equation}
 明显地，$F$代表输入的特征图，$L$代表序列长度，即分块的总数。
 
@@ -294,38 +297,73 @@ wkv_t &= \text{Bi-WKV}(K_s, V_s)_t \\
 $u$ 代表当前位置的增益系数（Bonus factor）；$T$ 为序列的总长度，用于对距离项进行归一化处理。
 
 如式\ref{eq:bi-wkv}所示，Bi-WKV 的权重，依赖 token 在一维序列中的相对距离，即为$|t-i|$.
-对每个 token $\mathbf{x}_t$，其主要有效上下文往往集中在序列邻域 $\mathcal{N}_R(t)=\{i:\ |i-t|\le R\}$，其中的R位有效的窗口半径。
-若 $|t-i|$ 小的 token 在二维平面上也相互邻近，则 Bi-WKV 的强权重区域主要聚合真实空间近邻信息；反之，若短序列窗口在二维上跨越较远距离，则会在高权重区域引入大量伪近邻（false neighbors），表现为只有一维连续性而缺乏二维连续性的“贪吃蛇效应”。
+对每个 token $\mathbf{x}_t$，其主要有效上下文往往集中在序列邻域 
 
-不同于之字扫描与蛇形扫描方式，我们使用 \textbf{Hilbert 空间填充曲线（Hilbert space-filling curve）}作为扫描顺序，以更好地对齐 Bi-WKV 的序列衰减结构与图像的二维连续性。
-
-而在 Zig-RiR 中，核心空间混合依赖 Bi-WKV。ZigZag~\cite{zigrir}扫描方式,通过蛇形扫描缓解了空间连续性问题，但最重要的，二维特征序列化后，贪吃蛇效应依然存在。
-为此，我们提出了两种解决方案：\textbf{1.Hilbert扫描；2.Dynamic Q-shift。}
+\begin{equation}
+\mathcal{N}_R(t) = \{i: |i - t| \le R\}
+\end{equation}
+其中的R为有效的窗口半径。
+若 $|t-i|$ 小的 token ，在二维平面上也相互邻近，则 Bi-WKV 聚合真实的近邻信息；反之，若短序列窗口在二维上跨越较远距离，则会引入大量伪近邻（false neighbors），
+表现为只有一维连续性而缺乏二维连续性的“贪吃蛇效应”。
 
 传统 raster 扫描会在行尾发生长跳跃，破坏空间连续性；
-蛇形扫描虽能缓解 一维序列上的跳跃，但其短序列窗口在二维上仍各向异性明显，存在伪近邻。
-我们使用Hilbert扫描方式~\cite{hilbert}替代常规的行优先（raster）或简单蛇形扫描。
-Hilbert是一种空间填充曲线，在不同尺度上具有递归结构，使得序列上的连续片段往往对应二维上的一个或少数几个紧凑小方块，减少了伪近邻现象；
-在离散网格上，Hilbert是一条连续的遍历路径，相邻序号的点在二维上通常是邻接的，避免了换行导致的跳跃\ref{fig:各种扫描方式对比的图像，包括传统，S字，对角线}。
+ZigZag~\cite{zigrir}扫描方式,虽能缓解 一维序列上的跳跃，但最重要的，二维连续性不足，贪吃蛇效应依然存在。
+为此，我们提出了两种解决方案：\textbf{1.Hilbert扫描；2.Dynamic Q-shift。}
 
 
-如图所示，Hilbert扫描的具体公式可以表示为
+不同于之字扫描与蛇形扫描方式，我们使用 \textbf{Hilbert\cite{hilbert} 空间填充曲线（Hilbert space-filling curve）}作为扫描顺序。
+Hilbert相比上述方式,能更好地保持2D空间的邻近关系。这对医学分割很重要，相邻像素通常属于同一语义类别,Hilbert扫描将2D图像序列化为1D时,能让语义连续的区域在序列中也保持连续。
+Hilbert是一种空间填充曲线，在不同尺度上具有递归结构，在序列化为token后，连续的序列片段，在二维上通常是邻接的，减少了伪近邻现象，
+避免了换行导致的跳跃\ref{fig:各种扫描方式对比的图像，包括传统，S字，对角线}。
+
+
+在Vision Transformer及其视觉变体中，使用了patch embedding + 自注意力机制，token间并无一维序列关系。但Bi-WKV采用序列建模，token间的相对位置关系对权重计算有重要影响，
+Hilbert扫描是具有价值的扫描方式。
+
+在stage的global branch与local branch中，我们采用这种扫描方式。设某$i$的stage中的特征图$F_i\in\mathbb{R}^{H_i\times W_i\times C_i}$，
+由公式~\ref{kappa}-\ref{local-branch}，定义一个双射在窗口$w\times w$上的Hilbert映射为
 \begin{equation}
-    待写
+    \pi^{(i,w)}_{\mathrm{H}}:\ \{0,1,\dots,L_i(w)-1\}\to \{0,1,\dots,G_i(w)-1\}^2
 \end{equation}
+其中 $\pi^{(i,w)}_{\mathrm{H}}(t)=(r_t,c_t)$ 给出序号 $t$ 对应的窗口坐标；其逆映射 $(\pi^{(i,w)}_{\mathrm{H}})^{-1}(r,c)=t$ 给出每个窗口在序列中的位置。
+据此，Hilbert将二维窗口集合 $\{b_{i,r,c}\}$ 序列化为
+\begin{equation}
+    \mathbf{X}^{(i,w)}=\big[\mathbf{x}^{(i,w)}_{0},\dots,\mathbf{x}^{(i,w)}_{L_i(w)-1}\big]\in\mathbb{R}^{L_i(w)\times d}
+\end{equation}
+其中
+\begin{equation}
+    \mathbf{x}^{(i,w)}_{t} = \phi\big(b_{i,\ \pi^{(i,w)}_{\mathrm{H}}(t)}\big),\quad t=0,\dots,L_i(w)-1
+\end{equation}
+$\phi(\cdot)$表示对窗口块的 token 化，输出维度为 $d$。
 
-其中。。。代表。。。，。。。代表。。。
+Hilbert的曲线构造如下：
+在一个离散网格$G\times G$上，定义映射$G=2^k$:
+\begin{equation}
+    \begin{aligned}
+        \mathcal{H}_k:\ \{0,1,\dots,G^2-1\}\to \{0,1,\dots,G-1\}^2,\\\qquad \mathcal{H}_k(t)=(r_t,c_t)
+    \end{aligned}
+\end{equation}
+若 $k=1$（$2\times2$），$\mathcal{H}_1$ 给出基本遍历顺序；当 $k>1$ 时，将网格划分为四个 $(G/2)\times(G/2)$ 子象限，对每个象限内使用低阶映射 $\mathcal{H}_{k-1}$ 并施加旋转/翻转变换，使得四段子路径首尾相接且整体连续。
 
-实验表明，在医学图像分割任务中，Hilbert扫描优于传统的扫描方式以及S字形扫描
+离散连续性可以表示为
+\begin{equation}
+    \|\mathcal{H}_k(t+1)-\mathcal{H}_k(t)\|_1=1,\quad \forall t
+\end{equation}
+可以看出，对半径 $R$ 的序列邻域 $\mathcal{N}_R(t)$，其对应的二维序列通常落在紧凑子块中，
+相邻的序号在二维上保持邻接状态。在医学分割过程中，使用Hilbert扫描，使Bi-WKV 的有效上下文（由 $|t-i|$ 控制）更接近二维局部感受野，也就减少了伪近邻现象。
+
+由图\ref{fig:各种扫描方式对比的图像，包括传统，S字，对角线}，Hilbert扫描，序列的连续片段主要集中在二维左侧区域。对于医学图像而言，病灶、器官往往集中聚合在某一
+区域，Hilbert扫描使得网络集中于目标区域，使注意力权重更加集中，提升了分割精度。实验表明，在医学图像分割任务中，Hilbert扫描优于传统的扫描方式以及S字形扫描
 ~\ref{fig:各种扫描方式对比的可视化实验结果与列表对比图}。 
 
 
+Hilbert 的定义中，要求 $G=2^k$。对于医学图像来说，每一层stage的窗口大小为$2^k$，无需额外处理。为了提高鲁棒性，若使用了自定义的数据集，当$G\not=2^k$时，
+我们为网络添加了处理机制，将网格划分为若干 $2^k\times2^k$ 子块，每个子块内部使用 Hilbert，子块之间使用行优先顺序进行拼接。
 
-
-Zig RiR的两次扫描和为一个BiWKV内进行，计算复杂度为\begin{equation}O=(2TC)\end{equation}
+由图\ref{Bi-WKV注意力机制的示意图}，注意力核心的计算复杂度为\begin{equation}O=(2TC).\end{equation}
 
 \subsection{Dynamic Q-shift}
-虽然改进了Hilbert扫描方式，但二维近邻的空间是割裂的。贪吃蛇仅仅在序列化时改变了爬行方式，而并没有改善更高维的信息交换。
+虽然改进了Hilbert扫描方式，但二维近邻的空间仍是割裂的。贪吃蛇仅仅在序列化时改变了爬行方式，而并没有改善更高维的信息交换。
 
 在Vision RWKV中，采用了四向位移机制(Q-shift)~\cite{vrwkv}，通过对token进行四个方向的位移，增强了空间连续性。
 这是对网络从一维语义像二维图像的改进，但是，正如上文所说，这种扫描方式，对于序列的方向与顺序较为敏感。同一 张2D 图像，更换一种扫描顺序，相对空间位置会显著变化，从而影响空间连续性。
