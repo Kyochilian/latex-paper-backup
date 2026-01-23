@@ -197,14 +197,16 @@ Bi-WKV基础上，我们利用低分辨率的WKV实现进一步的轻量化。
 
 
 \section{Methods}
-如图\ref{fig:main-network}所示，我们整体的网络采用了U型架构进行设计，分为下采样、上采样和跳跃连接。其中核心的特征提取在上采样中。整体而言，对于一张待分割的二维医学图像，首先经过stem，
+如图\ref{fig:main-network}所示，我们整体的网络采用了U型架构进行设计，分为下采样、上采样和跳跃连接。其中核心的特征提取在下·采样中。整体而言，对于一张待分割的二维医学图像，首先经过stem，
 在网络的初始部分，以进行早期的特征提取与图像分块。其次，网络将分块的图像送进encoder中，经过全局SS和局部SS，不断增加网络深度并提取分割特征。在此期间，基于Stage的扫描机制和Dynamic Q-
-shift将灵活处理分割精度与边界。在上采样过程中，（参考Gemini的思路），最终输出完整的分割结果。
+shift将灵活处理分割精度与边界。通过通用的上采样器，最终输出完整的分割结果。
 \subsection{Stem与预处理}
 直接使用原始像素pixel-level会导致序列过长，提高计算度和低频噪声的出现概率~\cite{vit}，因此要对输入的图片进行预处理。我们利用卷机的局部归纳偏置，高效地提取初步特征。
 图像首先会经过一个3x3的卷积块，经过一个batch normalization(BN)，随后进入
-GeLU函数进行激活。这个步骤会进行两次。在两步卷积过程中，图像的空间分辨率会快速缩小，导致在一开始容易丢失边缘细节信息，不利于高精度的语义分割，因此，在初始输入中，我们引入残差连接
-~\cite{resnet}将输入图像分枝，送入分枝的3x3卷积中，与一个batch norm，再与原模块加权，在深度不变的情况下增强了特征传递。
+GeLU函数进行激活。这个步骤会进行两次。两次 3x3 stride=2 卷积均采用 same padding，从而保证输出尺寸为 $\frac{H}{4}\times\frac{W}{4}$。
+
+在两步卷积过程中，图像的空间分辨率会快速缩小，导致在一开始容易丢失边缘细节信息，不利于高精度的语义分割，因此，在初始输入中，我们引入残差连接
+~\cite{resnet}将输入图像分枝，送入分枝的3x3卷积中，与一个batch norm，再与原模块进行常规加权，在深度不变的情况下增强了特征传递。
 
 定义一张输入二维图像为$X_{in} \in \mathbb{R}^{H \times W \times C_{in}}$。对于医学CT/MRI图像来说，通常$H=W=256, C_{in}=1$。
 stem模块的卷积核大小$k=3$,步长$s=2$，经过stem模块后，初始特征图$F_{0} \in \mathbb{R}^{\frac{H}{4} \times \frac{W}{4} \times C_{0}}$，$C_{0}=64$。
@@ -228,12 +230,12 @@ global branch旨在捕捉长距离依赖，window size较大，block数量较少
 其中$m_g=\frac{H_0}{w_g}\cdot\frac{W_0}{w_g}.$代表分块数量，$g_{i} \in \mathbb{R}^{w_g \times w_g \times C_0}$，$w_g$代表global branch的窗口行列。
 
 
-同样地，local batch的初始窗口分块可以表示为\begin{equation}F_{0}\xrightarrow{\;w_l\;}\{\ell_{1},\ell_{2},\dots,\ell_{m_\ell}\}\end{equation}
+同样地，local branch的初始窗口分块可以表示为\begin{equation}F_{0}\xrightarrow{\;w_l\;}\{\ell_{1},\ell_{2},\dots,\ell_{m_\ell}\}\end{equation}
 其中$m_\ell=\frac{H_0}{w_l}\cdot\frac{W_0}{w_l}.$代表分块数量，$ \ell_{i} \in \mathbb{R}^{w_l \times w_l \times C_0}$，$w_l$代表local branch的窗口行列。
-$ l_{i} \in \mathbb{R}^{w_l \times w_l \times C_i}$，$w_l$代表local branch的窗口行列。
+ $ \ell_{i} \in \mathbb{R}^{w_l \times w_l \times C_i}$，$w_l$代表local branch的窗口行列。
 
 local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{\kappa}\end{equation}
-其中$\kappa$为$g_{m}$相对于$l_{n}$的缩放系数。
+其中$\kappa$为$g$相对于$l$的缩放系数。
 
 \textit{2. Stage-wise Window Mechanism.}
 
@@ -284,7 +286,7 @@ L_i^\ell=\frac{H_i}{w_l(i)}\cdot\frac{W_i}{w_l(i)}.
 称之为伪近邻（false neighbors）。注意力机制学习到大量的伪近邻token，在高权重区域混入不符合二维局部连续性的关系，由此产生只有一维连续性，
 但没有二维连续性的贪吃蛇效应~\ref{fig:贪吃蛇效应}。
 
-在不同尺度的特征图上，Bi-WKV~\cite{vrwkv}进行特征提取。在Vision RWKV中，Bi-WKV包含两个WKV模块，分别沿水平与垂直方向进行扫描。
+在不同尺度的特征图上，Bi-WKV~\cite{vrwkv}进行特征提取。在Vision RWKV中，Bi-WKV 由双向（forward/backward）WKV 组成，用于在序列域聚合上下文。
 在时间步 $t$ 时，生成的双向加权键值聚合结果$wkv_t$，用公式表示为
 \begin{equation}
 \begin{aligned}
@@ -347,18 +349,18 @@ Hilbert的曲线构造如下：
 
 离散连续性可以表示为
 \begin{equation}
-    \|\mathcal{H}_k(t+1)-\mathcal{H}_k(t)\|_1=1,\quad \forall t
+    \|\mathcal{H}_k(t+1)-\mathcal{H}_k(t)\|_1 = 1,\quad t=0,\dots,G^2-2.
 \end{equation}
 可以看出，对半径 $R$ 的序列邻域 $\mathcal{N}_R(t)$，其对应的二维序列通常落在紧凑子块中，
 相邻的序号在二维上保持邻接状态。在医学分割过程中，使用Hilbert扫描，使Bi-WKV 的有效上下文（由 $|t-i|$ 控制）更接近二维局部感受野，也就减少了伪近邻现象。
 
 由图\ref{fig:各种扫描方式对比的图像，包括传统，S字，对角线}，Hilbert扫描，序列的连续片段主要集中在二维左侧区域。对于医学图像而言，病灶、器官往往集中聚合在某一
-区域，Hilbert扫描使得网络集中于目标区域，使注意力权重更加集中，提升了分割精度。实验表明，在医学图像分割任务中，Hilbert扫描优于传统的扫描方式以及S字形扫描
+区域，Hilbert 扫描提高了空间邻近的 token 在序列邻域内出现的概率，减少了伪近邻引入的错误聚合，提升了分割精度。实验表明，在医学图像分割任务中，Hilbert扫描优于传统的扫描方式以及S字形扫描
 ~\ref{fig:各种扫描方式对比的可视化实验结果与列表对比图}。 
 
 
-Hilbert 的定义中，要求 $G=2^k$。对于医学图像来说，每一层stage的窗口大小为$2^k$，无需额外处理。为了提高鲁棒性，若使用了自定义的数据集，当$G\not=2^k$时，
-我们为网络添加了处理机制，将网格划分为若干 $2^k\times2^k$ 子块，每个子块内部使用 Hilbert，子块之间使用行优先顺序进行拼接。
+Hilbert 的定义中，要求窗口网格尺寸 $G_i(w)=H_i/w$ 为 $2^k$。对于医学图像来说，$H_i$ 与 $w$ 取值使得 $G_i(w)$ 在各 stage 上均为 $2^k$，无需额外处理。为了提高鲁棒性，若使用了自定义的数据集，当$G\not=2^k$时，
+我们为网络添加了处理机制，将网格划分为若干 $2^k\times2^k$ 子块，每个子块内部使用 Hilbert，子块之间,再进行第二次Hilbert扫描，to 拼接。
 
 由图\ref{Bi-WKV注意力机制的示意图}，注意力核心的计算复杂度为\begin{equation}O=(2TC).\end{equation}
 
