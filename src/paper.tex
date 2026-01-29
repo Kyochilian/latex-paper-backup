@@ -368,6 +368,13 @@ Hilbert 的定义中，要求窗口网格尺寸 $G_i(w)=H_i/w$ 为 $2^k$。对�
 虽然改进了Hilbert扫描方式，但二维近邻的空间仍是割裂的。贪吃蛇仅仅在序列化时改变了爬行方式，而并没有改善更高维的信息交换。
 
 在Vision RWKV中，采用了四向位移机制(Q-shift)~\cite{vrwkv}，通过对token进行四个方向的位移，增强了空间连续性。
+Q-shift的公式如下：
+\begin{equation}
+\begin{aligned}
+    Q_{shifted} = &\ \text{ShiftUp}(Q) + \text{ShiftDown}(Q) \\
+    & + \text{ShiftLeft}(Q) + \text{ShiftRight}(Q)
+\end{aligned}
+\end{equation}
 这是对网络从一维语义像二维图像的改进，但是，正如上文所说，这种扫描方式，对于序列的方向与顺序较为敏感。同一 张2D 图像，更换一种扫描顺序，相对空间位置会显著变化，从而影响空间连续性。
 就像贪吃蛇游戏中，蛇头的移动方向决定了蛇身的走向，而无法关系周围的空间结构与顺序。
 
