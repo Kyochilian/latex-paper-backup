@@ -226,15 +226,15 @@ global branch旨在捕捉长距离依赖，window size较大，block数量较少
 序列长\ref{fig:global branch和local branch}。这种不同Granularity的方法使得模型能够在不同尺度上捕捉图像的全局与局部特征，提升了分割的精度。
 
 可以看出，对于stem输入的同一张原始图像$F$，global branch的初始窗口分块可以表示为
-\begin{equation}F_{0}\xrightarrow{\;w_g\;}\{g_{1},g_{2},\dots,g_{m_g}\}\end{equation}
+\begin{equation}\label{eq:paper-auto-01}F_{0}\xrightarrow{\;w_g\;}\{g_{1},g_{2},\dots,g_{m_g}\}\end{equation}
 其中$m_g=\frac{H_0}{w_g}\cdot\frac{W_0}{w_g}.$代表分块数量，$g_{i} \in \mathbb{R}^{w_g \times w_g \times C_0}$，$w_g$代表global branch的窗口行列。
 
 
-同样地，local branch的初始窗口分块可以表示为\begin{equation}F_{0}\xrightarrow{\;w_l\;}\{\ell_{1},\ell_{2},\dots,\ell_{m_\ell}\}\end{equation}
+同样地，local branch的初始窗口分块可以表示为\begin{equation}\label{eq:paper-auto-02}F_{0}\xrightarrow{\;w_l\;}\{\ell_{1},\ell_{2},\dots,\ell_{m_\ell}\}\end{equation}
 其中$m_\ell=\frac{H_0}{w_l}\cdot\frac{W_0}{w_l}.$代表分块数量，$ \ell_{i} \in \mathbb{R}^{w_l \times w_l \times C_0}$，$w_l$代表local branch的窗口行列。
  $ \ell_{i} \in \mathbb{R}^{w_l \times w_l \times C_i}$，$w_l$代表local branch的窗口行列。
 
-local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}w_l = \frac{w_g}{\kappa}\end{equation}
+local branch的窗口大小小于global branch的窗口大小，即$w_l < w_g$，可以表示为\begin{equation}\label{eq:paper-auto-03}w_l = \frac{w_g}{\kappa}\end{equation}
 其中$\kappa$为$g$相对于$l$的缩放系数。
 
 \textit{2. Stage-wise Window Mechanism.}
@@ -262,7 +262,7 @@ w_l(i)=\frac{w_g}{\kappa(i)}.
 \label{kappa}
 \end{equation}
 则在第 $i\in \{1,..., 4\}$ 个 stage 上，全局块和局部块分别将特征图$F_s$划分为
-\begin{equation}G_i = \frac{H_i}{w},w \in \{w_g, w_l\}\end{equation}
+\begin{equation}\label{eq:paper-auto-04}G_i = \frac{H_i}{w},w \in \{w_g, w_l\}\end{equation}
 个非重叠的blocks，其中 $H_i = W_i$ ，为输入图像的高宽度,序列长度（总块数）$L_i$即为$G_i$的平方。
 
 总而言之，在第$i$个stage上，Global Branch可以表示为
@@ -301,7 +301,7 @@ $u$ 代表当前位置的增益系数（Bonus factor）；$T$ 为序列的总长
 如式\ref{eq:bi-wkv}所示，Bi-WKV 的权重，依赖 token 在一维序列中的相对距离，即为$|t-i|$.
 对每个 token $\mathbf{x}_t$，其主要有效上下文往往集中在序列邻域 
 
-\begin{equation}
+\begin{equation}\label{eq:paper-auto-05}
 \mathcal{N}_R(t) = \{i: |i - t| \le R\}
 \end{equation}
 其中的R为有效的窗口半径。
@@ -324,23 +324,23 @@ Hilbert扫描是具有价值的扫描方式。
 
 在stage的global branch与local branch中，我们采用这种扫描方式。设某$i$的stage中的特征图$F_i\in\mathbb{R}^{H_i\times W_i\times C_i}$，
 由公式~\ref{kappa}-\ref{local-branch}，定义一个双射在窗口$w\times w$上的Hilbert映射为
-\begin{equation}
+\begin{equation}\label{eq:paper-auto-06}
     \pi^{(i,w)}_{\mathrm{H}}:\ \{0,1,\dots,L_i(w)-1\}\to \{0,1,\dots,G_i(w)-1\}^2
 \end{equation}
 其中 $\pi^{(i,w)}_{\mathrm{H}}(t)=(r_t,c_t)$ 给出序号 $t$ 对应的窗口坐标；其逆映射 $(\pi^{(i,w)}_{\mathrm{H}})^{-1}(r,c)=t$ 给出每个窗口在序列中的位置。
 据此，Hilbert将二维窗口集合 $\{b_{i,r,c}\}$ 序列化为
-\begin{equation}
+\begin{equation}\label{eq:paper-auto-07}
     \mathbf{X}^{(i,w)}=\big[\mathbf{x}^{(i,w)}_{0},\dots,\mathbf{x}^{(i,w)}_{L_i(w)-1}\big]\in\mathbb{R}^{L_i(w)\times d}
 \end{equation}
 其中
-\begin{equation}
+\begin{equation}\label{eq:paper-auto-08}
     \mathbf{x}^{(i,w)}_{t} = \phi\big(b_{i,\ \pi^{(i,w)}_{\mathrm{H}}(t)}\big),\quad t=0,\dots,L_i(w)-1
 \end{equation}
 $\phi(\cdot)$表示对窗口块的 token 化，输出维度为 $d$。
 
 Hilbert的曲线构造如下：
 在一个离散网格$G\times G$上，定义映射$G=2^k$:
-\begin{equation}
+\begin{equation}\label{eq:paper-auto-09}
     \begin{aligned}
         \mathcal{H}_k:\ \{0,1,\dots,G^2-1\}\to \{0,1,\dots,G-1\}^2,\\\qquad \mathcal{H}_k(t)=(r_t,c_t)
     \end{aligned}
@@ -348,7 +348,7 @@ Hilbert的曲线构造如下：
 若 $k=1$（$2\times2$），$\mathcal{H}_1$ 给出基本遍历顺序；当 $k>1$ 时，将网格划分为四个 $(G/2)\times(G/2)$ 子象限，对每个象限内使用低阶映射 $\mathcal{H}_{k-1}$ 并施加旋转/翻转变换，使得四段子路径首尾相接且整体连续。
 
 离散连续性可以表示为
-\begin{equation}
+\begin{equation}\label{eq:paper-auto-10}
     \|\mathcal{H}_k(t+1)-\mathcal{H}_k(t)\|_1 = 1,\quad t=0,\dots,G^2-2.
 \end{equation}
 可以看出，对半径 $R$ 的序列邻域 $\mathcal{N}_R(t)$，其对应的二维序列通常落在紧凑子块中，
@@ -362,14 +362,14 @@ Hilbert的曲线构造如下：
 Hilbert 的定义中，要求窗口网格尺寸 $G_i(w)=H_i/w$ 为 $2^k$。对于医学图像来说，$H_i$ 与 $w$ 取值使得 $G_i(w)$ 在各 stage 上均为 $2^k$，无需额外处理。为了提高鲁棒性，若使用了自定义的数据集，当$G\not=2^k$时，
 我们为网络添加了处理机制，将网格划分为若干 $2^k\times2^k$ 子块，每个子块内部使用 Hilbert，子块之间,再进行第二次Hilbert扫描，to 拼接。
 
-由图\ref{Bi-WKV注意力机制的示意图}，注意力核心的计算复杂度为\begin{equation}O=(2TC).\end{equation}
+由图\ref{Bi-WKV注意力机制的示意图}，注意力核心的计算复杂度为\begin{equation}\label{eq:paper-auto-11}O=(2TC).\end{equation}
 
 \subsection{Dynamic Q-shift}
 虽然改进了Hilbert扫描方式，但二维近邻的空间仍是割裂的。贪吃蛇仅仅在序列化时改变了爬行方式，而并没有改善更高维的信息交换。
 
 在Vision RWKV中，采用了四向位移机制(Q-shift)~\cite{vrwkv}，通过对token进行四个方向的位移，增强了空间连续性。
 Q-shift的公式如下：
-\begin{equation}
+\begin{equation}\label{eq:paper-auto-12}
 \begin{aligned}
     Q_{shifted} = &\ \text{ShiftUp}(Q) + \text{ShiftDown}(Q) \\
     & + \text{ShiftLeft}(Q) + \text{ShiftRight}(Q)
@@ -380,20 +380,86 @@ Q-shift的公式如下：
 
 在本文网络中，为了缓解贪吃蛇效应，我们对Q-shift进行了改良，使其动态调整位移方向。
 
-设
+设第 $i$ 个stage中，在窗口尺度 $w\in\{w_g,w_l(i)\}$ 下，块网格尺寸为 $G_i(w)=H_i/w$，序列长度为 $L_i(w)=G_i(w)^2$。
+由式(33)的 Hilbert 双射 $\pi^{(i,w)}_{\mathrm{H}}(t)=(r_t,c_t)$，我们可以为每个序号 $t$ 定义其在扫描路径上的“切向”方向（forward tangent）为
+\begin{equation}
+\mathbf{d}_t =
+\begin{cases}
+\pi^{(i,w)}_{\mathrm{H}}(t+1)-\pi^{(i,w)}_{\mathrm{H}}(t), & 0\le t \le L_i(w)-2,\\
+\pi^{(i,w)}_{\mathrm{H}}(t)-\pi^{(i,w)}_{\mathrm{H}}(t-1), & t=L_i(w)-1,
+\end{cases}
+\label{eq:tangent}
+\end{equation}
+由 Hilbert 离散连续性 $\|\pi^{(i,w)}_{\mathrm{H}}(t+1)-\pi^{(i,w)}_{\mathrm{H}}(t)\|_1=1$ 可知，
+$\mathbf{d}_t\in\{(\pm1,0),(0,\pm1)\}$，即每一步仅在四邻域中移动一格。
 
+接着，令四个单位方向为
+\begin{equation}\label{eq:paper-auto-13}
+\mathbf{e}_{\uparrow}=(-1,0),\quad 
+\mathbf{e}_{\downarrow}=(1,0),\quad
+\mathbf{e}_{\leftarrow}=(0,-1),\quad
+\mathbf{e}_{\rightarrow}=(0,1).
+\end{equation}
+对于任意方向 $\delta\in\{\uparrow,\downarrow,\leftarrow,\rightarrow\}$，定义其与扫描切向是否“共线”（即是否属于扫描路径方向）的指示量
+\begin{equation}\label{eq:paper-auto-14}
+a_{t,\delta}=|\mathbf{d}_t^\top \mathbf{e}_{\delta}|\in\{0,1\},
+\end{equation}
+其中 $a_{t,\delta}=1$ 表示方向 $\delta$ 与扫描切向平行（位于扫描路径上，包含 forward/backward 两向），
+而 $a_{t,\delta}=0$ 表示方向 $\delta$ 与扫描切向正交（位于扫描路径两侧）。
 
-缓解贪吃蛇效应。
-Q- shift对于不在扫描路径上的token，占比大一些
+\textbf{方向自适应权重。}
+由于 Bi-WKV 的主要聚合来自序列邻域 $\mathcal{N}_R(t)$（式(31)），而 $\mathcal{N}_R(t)$ 在二维上天然更偏向扫描切向邻域，
+因此我们令沿扫描路径方向的位移更弱、非扫描路径（左右侧）方向的位移更强。具体地，构造未归一化权重
+\begin{equation}
+\tilde{\alpha}_{t,\delta}=
+\begin{cases}
+\alpha_{\parallel}, & a_{t,\delta}=1,\\
+\alpha_{\perp}, & a_{t,\delta}=0,
+\end{cases}
+\qquad \alpha_{\perp}>\alpha_{\parallel},
+\label{eq:alpha_raw}
+\end{equation}
+并进行归一化
+\begin{equation}
+\alpha_{t,\delta}=\frac{\tilde{\alpha}_{t,\delta}}{\sum_{\delta'}\tilde{\alpha}_{t,\delta'}}.
+\label{eq:alpha_norm}
+\end{equation}
+将 $\alpha_{t,\delta}$ 通过 $(r_t,c_t)=\pi^{(i,w)}_{\mathrm{H}}(t)$ 回填到二维网格上，可得权重图
+$\alpha_{\delta}\in\mathbb{R}^{G_i(w)\times G_i(w)}$，即
+\begin{equation}\label{eq:paper-auto-15}
+\alpha_{\delta}(r_t,c_t)=\alpha_{t,\delta}.
+\end{equation}
 
-可以采用对角线扫描
-\subsection{Low-Resolution WKV}
-主要介绍主要的自注意力机制块，和对应的池化，
+\textbf{Dynamic Q-shift。}
+设当前分枝（窗口尺度 $w$）下的 Query 张量为 $Q\in\mathbb{R}^{G_i(w)\times G_i(w)\times d}$，
+则 Dynamic Q-shift 定义为对四向位移结果进行逐位置加权求和：
+\begin{equation}
+\begin{aligned}
+Q_{\mathrm{DQS}} = &\ \alpha_{\uparrow}\odot \text{ShiftUp}(Q) + \alpha_{\downarrow}\odot \text{ShiftDown}(Q) \\
+& + \alpha_{\leftarrow}\odot \text{ShiftLeft}(Q) + \alpha_{\rightarrow}\odot \text{ShiftRight}(Q),
+\end{aligned}
+\label{eq:dqs}
+\end{equation}
+其中 $\odot$ 表示逐位置乘法。
 
+式\ref{eq:dqs} 在形式上保持了 Vision RWKV 的四向位移结构，但通过式\ref{eq:tangent}--\ref{eq:alpha_norm}
+使位移方向随扫描路径动态变化。在扫描切向上施加更小的位移权重 $\alpha_{\parallel}$，
+而对扫描法向施加更大的位移权重 $\alpha_{\perp}$，从机制上增强二维近邻的信息交换，
+从而进一步缓解贪吃蛇效应并提升边界分割精度。
 
+需要强调的是，$\alpha_{\perp},\alpha_{\parallel}$ 不引入额外的注意力计算，仅产生常数级的逐点乘法开销；
+并且由于其仅由扫描顺序决定，在给定 $i,w$ 后可预计算，因此对推理速度影响极小。
 
+\subsection{Core WKV}
+在原始的Vision RWKV中，RWKV块分为Spatial Mix与Channel Mix，其中Spatial Mix是RWKV的注意力的核心，
+所谓的Hilbert扫描也在此改进。
 
-\subsection{上采样}
+SSS的RWKV块如下图所示\ref{fig:RWKV块，参看Vision RWKV与小米笔记}。
+特征经过 Dynamic Q-Shift 之后，分为 R-S、K-S 和 V-S。
+
+其中，R-S 与 V-S 经过希尔伯特扫描（Hilbert Scanning）进入到 WKV 块中，
+进行核心注意力机制的计算。在计算完毕之后，再次进行一次 WKV 的扫描。
+
 
 \section{Experiments}
 实验结果。与ZigRiR一致。

@@ -179,7 +179,7 @@ class Matrix:
 
 \subsubsection{矩阵乘法的数学原理}
 给定矩阵 $\mathbf{A} \in \mathbb{R}^{m \times k}$ 和 $\mathbf{B} \in \mathbb{R}^{k \times n}$，矩阵乘法 $\mathbf{C} = \mathbf{A} \cdot \mathbf{B}$ 的定义为：
-$$C_{ij} = \sum_{p=1}^{k} A_{ip} \cdot B_{pj}$$
+\begin{equation}\label{eq:resnet-auto-001}C_{ij} = \sum_{p=1}^{k} A_{ip} \cdot B_{pj}\end{equation}
 
 这是一个三重循环的计算过程，时间复杂度为 $O(m \times k \times n)$（可以看出，时间复杂度非常高，这也是为什么自己手写计算的时间非常长）：
 
@@ -240,7 +240,7 @@ def var(self, axis=None, keepdims=False):
 神经网络的参数初始化需要正态分布随机数。Box-Muller 变换\cite{BoxMuller}是一种经典的随机数生成方法，由 George E. P. Box 和 Mervin E. Muller 于 1958 年提出。该方法能够将两个独立的均匀分布随机变量转换为两个独立的标准正态分布随机变量，在本网络实现中，用于生成符合 $\mathcal{N}(\text{mean}, \text{std}^2)$ 分布的随机数，用于后续的参数初始化。
 
 给定两个独立的均匀分布随机变量 $U_1, U_2 \sim \text{Uniform}(0,1)$，可生成标准正态分布随机变量：
-$$Z = \sqrt{-2\ln U_1} \cdot \cos(2\pi U_2)$$
+\begin{equation}\label{eq:resnet-auto-002}Z = \sqrt{-2\ln U_1} \cdot \cos(2\pi U_2)\end{equation}
 
 \begin{lstlisting}
 @staticmethod
@@ -272,12 +272,12 @@ PS：1、这里的代码采用了递归的方式生成多维数组，递归的�
 \end{figure}
 
 给定输入向量 $\mathbf{x} \in \mathbb{R}^{d_{in}}$，权重矩阵 $\mathbf{W} \in \mathbb{R}^{d_{in} \times d_{out}}$ 和偏置向量 $\mathbf{b} \in \mathbb{R}^{d_{out}}$，前向传播的计算公式为：
-$$\mathbf{y} = \mathbf{x} \cdot \mathbf{W} + \mathbf{b}$$
+\begin{equation}\label{eq:resnet-auto-003}\mathbf{y} = \mathbf{x} \cdot \mathbf{W} + \mathbf{b}\end{equation}
 
 这也是老师上课时讲的，再熟悉不过的公式。
 \subsubsection{参数初始化：Xavier 初始化}
 为了保持前向传播时激活值的方差稳定，采用 Xavier 初始化\cite{xavier}：
-$$\mathbf{W} \sim \mathcal{N}\left(0, \sqrt{\frac{2}{d_{in} + d_{out}}}\right)$$
+\begin{equation}\label{eq:resnet-auto-004}\mathbf{W} \sim \mathcal{N}\left(0, \sqrt{\frac{2}{d_{in} + d_{out}}}\right)\end{equation}
 
 这里的Xavier初始化是什么呢？简单来说，它是一种权重初始化方法，由 Glorot 和 Bengio 于 2010 年提出，旨在保持每层神经网络的输入和输出的方差相等，从而避免梯度消失或爆炸的问题。
 
@@ -288,21 +288,21 @@ Xavier初始化通过根据输入和输出神经元的数量来调整权重的�
 \textbf{对权重的梯度：}
 
 由于 $y_{nj} = \sum_{i} x_{ni} W_{ij} + b_j$，根据链式法则：
-$$\frac{\partial L}{\partial W_{ij}} = \sum_{n} \frac{\partial L}{\partial y_{nj}} \cdot \frac{\partial y_{nj}}{\partial W_{ij}} = \sum_{n} \frac{\partial L}{\partial y_{nj}} \cdot x_{ni}$$
+\begin{equation}\label{eq:resnet-auto-005}\frac{\partial L}{\partial W_{ij}} = \sum_{n} \frac{\partial L}{\partial y_{nj}} \cdot \frac{\partial y_{nj}}{\partial W_{ij}} = \sum_{n} \frac{\partial L}{\partial y_{nj}} \cdot x_{ni}\end{equation}
 
 写成矩阵形式：
-$$\frac{\partial L}{\partial \mathbf{W}} = \mathbf{x}^T \cdot \frac{\partial L}{\partial \mathbf{y}}$$
+\begin{equation}\label{eq:resnet-auto-006}\frac{\partial L}{\partial \mathbf{W}} = \mathbf{x}^T \cdot \frac{\partial L}{\partial \mathbf{y}}\end{equation}
 
 \textbf{对偏置的梯度：}
 
 由于 $y_{nj} = \sum_{i} x_{ni} W_{ij} + b_j$，偏置 $b_j$ 对所有样本的 $y_{nj}$ 都有贡献：
-$$\frac{\partial L}{\partial b_j} = \sum_{n} \frac{\partial L}{\partial y_{nj}} \cdot \frac{\partial y_{nj}}{\partial b_j} = \sum_{n} \frac{\partial L}{\partial y_{nj}}$$
+\begin{equation}\label{eq:resnet-auto-007}\frac{\partial L}{\partial b_j} = \sum_{n} \frac{\partial L}{\partial y_{nj}} \cdot \frac{\partial y_{nj}}{\partial b_j} = \sum_{n} \frac{\partial L}{\partial y_{nj}}\end{equation}
 
 \textbf{对输入的梯度（用于继续反向传播）：}
-$$\frac{\partial L}{\partial x_{ni}} = \sum_{j} \frac{\partial L}{\partial y_{nj}} \cdot \frac{\partial y_{nj}}{\partial x_{ni}} = \sum_{j} \frac{\partial L}{\partial y_{nj}} \cdot W_{ij}$$
+\begin{equation}\label{eq:resnet-auto-008}\frac{\partial L}{\partial x_{ni}} = \sum_{j} \frac{\partial L}{\partial y_{nj}} \cdot \frac{\partial y_{nj}}{\partial x_{ni}} = \sum_{j} \frac{\partial L}{\partial y_{nj}} \cdot W_{ij}\end{equation}
 
 写成矩阵形式：
-$$\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}} \cdot \mathbf{W}^T$$
+\begin{equation}\label{eq:resnet-auto-009}\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}} \cdot \mathbf{W}^T\end{equation}
 
 可以看出，全连接层的反向传播主要依赖于矩阵乘法和求和操作，同时链式法则的推导是层层递进的。我们可以根据偏导进行计算各层的梯度。
 
@@ -366,14 +366,14 @@ class Linear(Layer):
 给定输入特征图 $\mathbf{X} \in \mathbb{R}^{N \times C_{in} \times H \times W}$ 和卷积核 $\mathbf{K} \in \mathbb{R}^{C_{out} \times C_{in} \times k_h \times k_w}$，
 其中$N$ 为批量大小，$C_{in}$ 和 $C_{out}$ 分别为输入和输出通道数，$H$ 和 $W$ 为输入特征图的高度和宽度，$k_h$ 和 $k_w$ 为卷积核的高度和宽度。偏置向量为 $\mathbf{b} \in \mathbb{R}^{C_{out}}$。
 卷积运算的定义为：
-$$\mathbf{Y}[n, c_o, h, w] = \sum_{c_i=0}^{C_{in}-1} \sum_{i=0}^{k_h-1} \sum_{j=0}^{k_w-1} \mathbf{X}[n, c_i, h \cdot s + i, w \cdot s + j] \cdot \mathbf{K}[c_o, c_i, i, j] + b[c_o]$$
+\begin{equation}\label{eq:resnet-auto-010}\mathbf{Y}[n, c_o, h, w] = \sum_{c_i=0}^{C_{in}-1} \sum_{i=0}^{k_h-1} \sum_{j=0}^{k_w-1} \mathbf{X}[n, c_i, h \cdot s + i, w \cdot s + j] \cdot \mathbf{K}[c_o, c_i, i, j] + b[c_o]\end{equation}
 
 其中 $s$ 为步长 stride。输出特征图的空间尺寸计算公式：
-$$H_{out} = \left\lfloor \frac{H_{in} + 2 \cdot p - k_h}{s} \right\rfloor + 1, \quad W_{out} = \left\lfloor \frac{W_{in} + 2 \cdot p - k_w}{s} \right\rfloor + 1$$
+\begin{equation}\label{eq:resnet-auto-011}H_{out} = \left\lfloor \frac{H_{in} + 2 \cdot p - k_h}{s} \right\rfloor + 1, \quad W_{out} = \left\lfloor \frac{W_{in} + 2 \cdot p - k_w}{s} \right\rfloor + 1\end{equation}
 
 \subsubsection{He 初始化 \cite{he_init}}
 对于使用 ReLU 激活函数的网络，采用 He 初始化：
-$$\mathbf{K} \sim \mathcal{N}\left(0, \sqrt{\frac{2}{C_{in} \times k_h \times k_w}}\right)$$
+\begin{equation}\label{eq:resnet-auto-012}\mathbf{K} \sim \mathcal{N}\left(0, \sqrt{\frac{2}{C_{in} \times k_h \times k_w}}\right)\end{equation}
 
 这里的He初始化是一种权重初始化方法，专门针对使用 ReLU 激活函数的神经网络设计。He 初始化通过调整权重的初始分布，确保在前向传播过程中激活值的方差保持稳定，从而有效缓解了梯度消失或爆炸的问题。
 
@@ -389,15 +389,15 @@ $$\mathbf{K} \sim \mathcal{N}\left(0, \sqrt{\frac{2}{C_{in} \times k_h \times k_
 \textbf{1. 对卷积核的梯度 $\frac{\partial L}{\partial \mathbf{K}}$：}
 
 对于每个卷积核元素 $K[c_o, c_i, i, j]$，它参与了输出 $Y[n, c_o, h, w]$ 的计算，其中输入位置为 $(h \cdot s + i, w \cdot s + j)$。根据链式法则：
-$$\frac{\partial L}{\partial K[c_o, c_i, i, j]} = \sum_n \sum_h \sum_w \frac{\partial L}{\partial Y[n, c_o, h, w]} \cdot X_{pad}[n, c_i, h \cdot s + i, w \cdot s + j]$$
+\begin{equation}\label{eq:resnet-auto-013}\frac{\partial L}{\partial K[c_o, c_i, i, j]} = \sum_n \sum_h \sum_w \frac{\partial L}{\partial Y[n, c_o, h, w]} \cdot X_{pad}[n, c_i, h \cdot s + i, w \cdot s + j]\end{equation}
 
 \textbf{2. 对偏置的梯度 $\frac{\partial L}{\partial b}$：}
-$$\frac{\partial L}{\partial b[c_o]} = \sum_n \sum_h \sum_w \frac{\partial L}{\partial Y[n, c_o, h, w]}$$
+\begin{equation}\label{eq:resnet-auto-014}\frac{\partial L}{\partial b[c_o]} = \sum_n \sum_h \sum_w \frac{\partial L}{\partial Y[n, c_o, h, w]}\end{equation}
 
 \textbf{3. 对输入的梯度 $\frac{\partial L}{\partial \mathbf{X}}$（转置卷积）：}
 
 输入 $X[n, c_i, h_i, w_i]$ 会影响多个输出位置。设 $h_i = h_o \cdot s + k_i$ 且 $w_i = w_o \cdot s + k_j$，则：
-$$\frac{\partial L}{\partial X[n, c_i, h_i, w_i]} = \sum_{c_o} \sum_{h_o, w_o} \frac{\partial L}{\partial Y[n, c_o, h_o, w_o]} \cdot K[c_o, c_i, k_i, k_j]$$
+\begin{equation}\label{eq:resnet-auto-015}\frac{\partial L}{\partial X[n, c_i, h_i, w_i]} = \sum_{c_o} \sum_{h_o, w_o} \frac{\partial L}{\partial Y[n, c_o, h_o, w_o]} \cdot K[c_o, c_i, k_i, k_j]\end{equation}
 
 其中 $(h_o, w_o, k_i, k_j)$ 满足 $h_i = h_o \cdot s + k_i$ 且 $w_i = w_o \cdot s + k_j$。
 
@@ -498,16 +498,16 @@ class Conv2d(Layer):
 对于卷积网络中的四维输入张量 $\mathbf{X} \in \mathbb{R}^{N \times C \times H \times W}$，BatchNorm 对每个通道 $c$ 独立进行标准化。设 $m = N \times H \times W$ 为每个通道的元素总数。
 
 \textbf{第一步：计算通道均值}
-$$\mu_c = \frac{1}{m} \sum_{n=1}^{N} \sum_{h=1}^{H} \sum_{w=1}^{W} x_{n,c,h,w}$$
+\begin{equation}\label{eq:resnet-auto-016}\mu_c = \frac{1}{m} \sum_{n=1}^{N} \sum_{h=1}^{H} \sum_{w=1}^{W} x_{n,c,h,w}\end{equation}
 
 \textbf{第二步：计算通道方差}
-$$\sigma_c^2 = \frac{1}{m} \sum_{n=1}^{N} \sum_{h=1}^{H} \sum_{w=1}^{W} (x_{n,c,h,w} - \mu_c)^2$$
+\begin{equation}\label{eq:resnet-auto-017}\sigma_c^2 = \frac{1}{m} \sum_{n=1}^{N} \sum_{h=1}^{H} \sum_{w=1}^{W} (x_{n,c,h,w} - \mu_c)^2\end{equation}
 
 \textbf{第三步：标准化}
-$$\hat{x}_{n,c,h,w} = \frac{x_{n,c,h,w} - \mu_c}{\sqrt{\sigma_c^2 + \epsilon}}$$
+\begin{equation}\label{eq:resnet-auto-018}\hat{x}_{n,c,h,w} = \frac{x_{n,c,h,w} - \mu_c}{\sqrt{\sigma_c^2 + \epsilon}}\end{equation}
 
 \textbf{第四步：仿射变换（可学习参数）}
-$$y_{n,c,h,w} = \gamma_c \cdot \hat{x}_{n,c,h,w} + \beta_c$$
+\begin{equation}\label{eq:resnet-auto-019}y_{n,c,h,w} = \gamma_c \cdot \hat{x}_{n,c,h,w} + \beta_c\end{equation}
 
 其中 $\gamma_c$ 和 $\beta_c$ 是可学习的缩放和平移参数。通俗来讲是什么意思呢？BatchNorm的前向传播过程可以分为四个步骤：计算均值、计算方差、标准化输入以及应用可学习的缩放和平移。这一过程有助于稳定训练过程，提高模型性能。
 这里的仿射变换是指通过线性变换（缩放和平移）来调整标准化后的数据分布，就是让数据更加切合，微调。
@@ -519,10 +519,10 @@ BatchNorm 的反向传播是本项目中最复杂的部分之一,推导他要了
 设 $\frac{\partial L}{\partial y}$ 为上游梯度。
 
 \textbf{对 $\gamma$ 的梯度：}
-$$\frac{\partial L}{\partial \gamma_c} = \sum_{n,h,w} \frac{\partial L}{\partial y_{n,c,h,w}} \cdot \hat{x}_{n,c,h,w}$$
+\begin{equation}\label{eq:resnet-auto-020}\frac{\partial L}{\partial \gamma_c} = \sum_{n,h,w} \frac{\partial L}{\partial y_{n,c,h,w}} \cdot \hat{x}_{n,c,h,w}\end{equation}
 
 \textbf{对 $\beta$ 的梯度：}
-$$\frac{\partial L}{\partial \beta_c} = \sum_{n,h,w} \frac{\partial L}{\partial y_{n,c,h,w}}$$
+\begin{equation}\label{eq:resnet-auto-021}\frac{\partial L}{\partial \beta_c} = \sum_{n,h,w} \frac{\partial L}{\partial y_{n,c,h,w}}\end{equation}
 
 \textbf{对输入的梯度（最复杂）：}
 
@@ -530,10 +530,10 @@ $$\frac{\partial L}{\partial \beta_c} = \sum_{n,h,w} \frac{\partial L}{\partial 
 
 由于 $\hat{x}$ 同时依赖于 $x$、$\mu$（$x$ 的均值）和 $\sigma$（$x$ 的标准差），需要考虑三条路径：
 
-$$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial \hat{x}} \cdot \frac{\partial \hat{x}}{\partial x} + \frac{\partial L}{\partial \hat{x}} \cdot \frac{\partial \hat{x}}{\partial \mu} \cdot \frac{\partial \mu}{\partial x} + \frac{\partial L}{\partial \hat{x}} \cdot \frac{\partial \hat{x}}{\partial \sigma} \cdot \frac{\partial \sigma}{\partial x}$$
+\begin{equation}\label{eq:resnet-auto-022}\frac{\partial L}{\partial x} = \frac{\partial L}{\partial \hat{x}} \cdot \frac{\partial \hat{x}}{\partial x} + \frac{\partial L}{\partial \hat{x}} \cdot \frac{\partial \hat{x}}{\partial \mu} \cdot \frac{\partial \mu}{\partial x} + \frac{\partial L}{\partial \hat{x}} \cdot \frac{\partial \hat{x}}{\partial \sigma} \cdot \frac{\partial \sigma}{\partial x}\end{equation}
 
 最终化简结果：
-$$\frac{\partial L}{\partial x_{n,c,h,w}} = \frac{1}{m \cdot \sigma_c} \left( m \cdot \frac{\partial L}{\partial \hat{x}_{n,c,h,w}} - \sum_{i} \frac{\partial L}{\partial \hat{x}_i} - \hat{x}_{n,c,h,w} \cdot \sum_{i} \frac{\partial L}{\partial \hat{x}_i} \cdot \hat{x}_i \right)$$
+\begin{equation}\label{eq:resnet-auto-023}\frac{\partial L}{\partial x_{n,c,h,w}} = \frac{1}{m \cdot \sigma_c} \left( m \cdot \frac{\partial L}{\partial \hat{x}_{n,c,h,w}} - \sum_{i} \frac{\partial L}{\partial \hat{x}_i} - \hat{x}_{n,c,h,w} \cdot \sum_{i} \frac{\partial L}{\partial \hat{x}_i} \cdot \hat{x}_i \right)\end{equation}
 
 然而这个公式还是难以理解。我们拆开来看：
 
@@ -545,7 +545,7 @@ $$\frac{\partial L}{\partial x_{n,c,h,w}} = \frac{1}{m \cdot \sigma_c} \left( m 
 
 \subsubsection{训练与推理模式}
 训练时使用当前批次的统计量，同时更新运行均值和方差（用于推理）：
-$$\mu_{running} = (1-\alpha) \cdot \mu_{running} + \alpha \cdot \mu_{batch}$$
+\begin{equation}\label{eq:resnet-auto-024}\mu_{running} = (1-\alpha) \cdot \mu_{running} + \alpha \cdot \mu_{batch}\end{equation}
 
 这里的 $\mu_{running}$ 表示运行均值，$\mu_{batch}$ 表示当前批次的均值，$\alpha$ 是动量参数，控制更新速度。
 
@@ -668,15 +668,15 @@ class BatchNorm2d(Layer):
 
 \subsubsection{ReLU (Rectified Linear Unit) \cite{relu}}
 ReLU 是目前最常用的激活函数，由 Nair 和 Hinton 于 2010 年提出，并在 AlexNet \cite{alexnet} 中得到广泛应用。其数学定义为：
-$$\text{ReLU}(x) = \max(0, x) = \begin{cases} x & \text{if } x > 0 \\ 0 & \text{if } x \leq 0 \end{cases}$$
+\begin{equation}\label{eq:resnet-auto-025}\text{ReLU}(x) = \max(0, x) = \begin{cases} x & \text{if } x > 0 \\ 0 & \text{if } x \leq 0 \end{cases}\end{equation}
 
 \textbf{ReLU 的反向传播：}
 
 ReLU 的导数非常简单：
-$$\frac{\partial \text{ReLU}(x)}{\partial x} = \begin{cases} 1 & \text{if } x > 0 \\ 0 & \text{if } x \leq 0 \end{cases} = \mathbf{1}_{[x>0]}$$
+\begin{equation}\label{eq:resnet-auto-026}\frac{\partial \text{ReLU}(x)}{\partial x} = \begin{cases} 1 & \text{if } x > 0 \\ 0 & \text{if } x \leq 0 \end{cases} = \mathbf{1}_{[x>0]}\end{equation}
 
 根据链式法则，反向传播时：
-$$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot \frac{\partial y}{\partial x} = \frac{\partial L}{\partial y} \cdot \mathbf{1}_{[x>0]}$$
+\begin{equation}\label{eq:resnet-auto-027}\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot \frac{\partial y}{\partial x} = \frac{\partial L}{\partial y} \cdot \mathbf{1}_{[x>0]}\end{equation}
 
 即：上游梯度在 $x > 0$ 的位置保持不变，在 $x \leq 0$ 的位置变为 0。
 
@@ -711,20 +711,20 @@ class ReLU(Layer):
 
 \subsubsection{Sigmoid 函数}
 Sigmoid 函数将任意实数映射到 $(0, 1)$ 区间，常用于二分类输出或门控机制（如 SE 注意力模块）：
-$$\sigma(x) = \frac{1}{1 + e^{-x}}$$
+\begin{equation}\label{eq:resnet-auto-028}\sigma(x) = \frac{1}{1 + e^{-x}}\end{equation}
 
 \textbf{Sigmoid 的反向传播：}
 
 Sigmoid 有一个优雅的导数性质：
-$$\frac{d\sigma}{dx} = \sigma(x) \cdot (1 - \sigma(x))$$
+\begin{equation}\label{eq:resnet-auto-029}\frac{d\sigma}{dx} = \sigma(x) \cdot (1 - \sigma(x))\end{equation}
 
 这个是什么意思呢？它表示 Sigmoid 函数的导数可以通过函数值本身来表示，这使得反向传播计算更加简洁高效。
 
 推导过程：
-$$\frac{d\sigma}{dx} = \frac{d}{dx}\left(\frac{1}{1+e^{-x}}\right) = \frac{e^{-x}}{(1+e^{-x})^2} = \frac{1}{1+e^{-x}} \cdot \frac{e^{-x}}{1+e^{-x}} = \sigma(x) \cdot (1-\sigma(x))$$
+\begin{equation}\label{eq:resnet-auto-030}\frac{d\sigma}{dx} = \frac{d}{dx}\left(\frac{1}{1+e^{-x}}\right) = \frac{e^{-x}}{(1+e^{-x})^2} = \frac{1}{1+e^{-x}} \cdot \frac{e^{-x}}{1+e^{-x}} = \sigma(x) \cdot (1-\sigma(x))\end{equation}
 
 根据链式法则：
-$$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot \sigma(x) \cdot (1 - \sigma(x))$$
+\begin{equation}\label{eq:resnet-auto-031}\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot \sigma(x) \cdot (1 - \sigma(x))\end{equation}
 
 \textbf{注意}
 
@@ -772,12 +772,12 @@ Softmax函数在深度学习中的应用非常广泛，最广为人知的就是 
     \label{fig:softmax}
 \end{figure}
 Softmax 将 $C$ 个实数转换为概率分布，常用于多分类输出层：
-$$\text{Softmax}(\mathbf{z})_i = \frac{e^{z_i}}{\sum_{j=1}^{C} e^{z_j}}$$
+\begin{equation}\label{eq:resnet-auto-032}\text{Softmax}(\mathbf{z})_i = \frac{e^{z_i}}{\sum_{j=1}^{C} e^{z_j}}\end{equation}
 
 \textbf{注意}
 
 为防止指数溢出，实际计算时减去最大值：
-$$\text{Softmax}(\mathbf{z})_i = \frac{e^{z_i - \max(\mathbf{z})}}{\sum_{j=1}^{C} e^{z_j - \max(\mathbf{z})}}$$
+\begin{equation}\label{eq:resnet-auto-033}\text{Softmax}(\mathbf{z})_i = \frac{e^{z_i - \max(\mathbf{z})}}{\sum_{j=1}^{C} e^{z_j - \max(\mathbf{z})}}\end{equation}
 
 \begin{lstlisting}
 class Softmax(Layer):
@@ -803,19 +803,19 @@ class Softmax(Layer):
 
 \subsection{残差块 (BasicBlock)}
 残差块是 ResNet \cite{resnet} 的核心创新。传统网络直接学习目标映射 $\mathcal{H}(\mathbf{x})$，而残差块学习残差映射 $\mathcal{F}(\mathbf{x}) = \mathcal{H}(\mathbf{x}) - \mathbf{x}$，最终输出为：
-$$\mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{x}$$
+\begin{equation}\label{eq:resnet-auto-034}\mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{x}\end{equation}
 
 \subsubsection{为什么残差学习有效}
 在没有残差连接的情况下，深层网络需要直接拟合复杂的映射函数，这可能导致梯度消失或爆炸，训练困难。而引入残差连接后，深层的网络只需学习输入与输出之间的差异（残差），这通常是一个更简单的任务。同时，残差有效地保持了信息在深层网络中的传递，不至于信息丢失过于严重。
 
 当输入输出维度不同（通道数变化或下采样）时，需要对捷径路径进行变换：
-$$\mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{W}_s \mathbf{x}$$
+\begin{equation}\label{eq:resnet-auto-035}\mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{W}_s \mathbf{x}\end{equation}
 
 其中 $\mathbf{W}_s$ 通常是 1×1 卷积实现的线性投影。
 
 \subsubsection{反向传播的梯度分流}
 设 $\mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{x}$，根据链式法则：
-$$\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}} \cdot \frac{\partial \mathbf{y}}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}} \cdot \left( \frac{\partial \mathcal{F}}{\partial \mathbf{x}} + \mathbf{I} \right)$$
+\begin{equation}\label{eq:resnet-auto-036}\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}} \cdot \frac{\partial \mathbf{y}}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}} \cdot \left( \frac{\partial \mathcal{F}}{\partial \mathbf{x}} + \mathbf{I} \right)\end{equation}
 
 其中 $\mathbf{I}$ 是恒等矩阵。这意味着梯度可以通过两条路径流动：
 \begin{itemize}
@@ -910,21 +910,21 @@ SE 模块包含三个步骤：
 \textbf{第一步：Squeeze（全局平均池化）}
 
 将空间维度压缩为单个统计量，获取每个通道的全局信息：
-$$z_c = \frac{1}{H \times W} \sum_{h=1}^{H} \sum_{w=1}^{W} x_{c,h,w}$$
+\begin{equation}\label{eq:resnet-auto-037}z_c = \frac{1}{H \times W} \sum_{h=1}^{H} \sum_{w=1}^{W} x_{c,h,w}\end{equation}
 
 输出 $\mathbf{z} \in \mathbb{R}^C$ 是一个通道描述符。
 
 \textbf{第二步：Excitation（门控机制）}
 
 使用两个全连接层学习通道间的依赖关系：
-$$\mathbf{s} = \sigma\left(\mathbf{W}_2 \cdot \text{ReLU}(\mathbf{W}_1 \cdot \mathbf{z})\right)$$
+\begin{equation}\label{eq:resnet-auto-038}\mathbf{s} = \sigma\left(\mathbf{W}_2 \cdot \text{ReLU}(\mathbf{W}_1 \cdot \mathbf{z})\right)\end{equation}
 
 其中 $\mathbf{W}_1 \in \mathbb{R}^{C/r \times C}$ 和 $\mathbf{W}_2 \in \mathbb{R}^{C \times C/r}$，$r$ 是降维比例（reduction ratio），用于减少参数量。
 
 \textbf{第三步：Scale（通道重标定）}
 
 用学习到的权重对原始特征进行逐通道加权：
-$$\tilde{x}_{c,h,w} = s_c \cdot x_{c,h,w}$$
+\begin{equation}\label{eq:resnet-auto-039}\tilde{x}_{c,h,w} = s_c \cdot x_{c,h,w}\end{equation}
 
 \subsubsection{反向传播的详细推导}
 SE 模块的反向传播需要处理多条梯度路径。这里的反向传播的思路，主要由作者放出的GitHub链接https://github.com/titu1994/keras-squeeze-excite-network提供。
@@ -932,18 +932,18 @@ SE 模块的反向传播需要处理多条梯度路径。这里的反向传播�
 设 $\mathbf{y} = \mathbf{s} \odot \mathbf{x}$（逐通道乘法），$\frac{\partial L}{\partial \mathbf{y}}$ 为上游梯度。
 
 \textbf{对原始特征 $\mathbf{x}$ 的梯度（通过乘法）：}
-$$\frac{\partial L}{\partial x_{c,h,w}}\bigg|_{mul} = \frac{\partial L}{\partial y_{c,h,w}} \cdot s_c$$
+\begin{equation}\label{eq:resnet-auto-040}\frac{\partial L}{\partial x_{c,h,w}}\bigg|_{mul} = \frac{\partial L}{\partial y_{c,h,w}} \cdot s_c\end{equation}
 
 \textbf{对缩放因子 $\mathbf{s}$ 的梯度：}
-$$\frac{\partial L}{\partial s_c} = \sum_{h,w} \frac{\partial L}{\partial y_{c,h,w}} \cdot x_{c,h,w}$$
+\begin{equation}\label{eq:resnet-auto-041}\frac{\partial L}{\partial s_c} = \sum_{h,w} \frac{\partial L}{\partial y_{c,h,w}} \cdot x_{c,h,w}\end{equation}
 
 然后通过 Sigmoid、FC2、ReLU、FC1 反向传播得到 $\frac{\partial L}{\partial \mathbf{z}}$。
 
 \textbf{通过 GlobalAvgPool 对 $\mathbf{x}$ 的梯度：}
-$$\frac{\partial L}{\partial x_{c,h,w}}\bigg|_{gap} = \frac{1}{H \times W} \cdot \frac{\partial L}{\partial z_c}$$
+\begin{equation}\label{eq:resnet-auto-042}\frac{\partial L}{\partial x_{c,h,w}}\bigg|_{gap} = \frac{1}{H \times W} \cdot \frac{\partial L}{\partial z_c}\end{equation}
 
 \textbf{最终梯度（两条路径相加）：}
-$$\frac{\partial L}{\partial x_{c,h,w}} = \frac{\partial L}{\partial x_{c,h,w}}\bigg|_{mul} + \frac{\partial L}{\partial x_{c,h,w}}\bigg|_{gap}$$
+\begin{equation}\label{eq:resnet-auto-043}\frac{\partial L}{\partial x_{c,h,w}} = \frac{\partial L}{\partial x_{c,h,w}}\bigg|_{mul} + \frac{\partial L}{\partial x_{c,h,w}}\bigg|_{gap}\end{equation}
 
 \subsubsection{完整源代码实现}
 \begin{lstlisting}
@@ -1023,7 +1023,7 @@ class SEBlock(Layer):
 Bottleneck 是 ResNet-50/101/152 使用的更深的残差块结构，采用瓶颈设计来减少计算量。
 
 \subsubsection{Bottleneck 的数学结构}
-$$\mathbf{y} = \underbrace{\text{Conv}_{1\times1} \rightarrow \text{BN} \rightarrow \text{ReLU} \rightarrow \text{Conv}_{3\times3} \rightarrow \text{BN} \rightarrow \text{ReLU} \rightarrow \text{Conv}_{1\times1} \rightarrow \text{BN}}_{\mathcal{F}(\mathbf{x})} + \mathbf{x}$$
+\begin{equation}\label{eq:resnet-auto-044}\mathbf{y} = \underbrace{\text{Conv}_{1\times1} \rightarrow \text{BN} \rightarrow \text{ReLU} \rightarrow \text{Conv}_{3\times3} \rightarrow \text{BN} \rightarrow \text{ReLU} \rightarrow \text{Conv}_{1\times1} \rightarrow \text{BN}}_{\mathcal{F}(\mathbf{x})} + \mathbf{x}\end{equation}
 
 三层卷积的作用：
 \begin{itemize}
@@ -1081,24 +1081,24 @@ class Bottleneck(Layer):
 
 \subsubsection{Softmax 函数}
 对原始 logits $\mathbf{z} \in \mathbb{R}^C$ 应用 Softmax 得到概率分布：
-$$p_i = \text{Softmax}(\mathbf{z})_i = \frac{e^{z_i}}{\sum_{j=1}^{C} e^{z_j}}$$
+\begin{equation}\label{eq:resnet-auto-045}p_i = \text{Softmax}(\mathbf{z})_i = \frac{e^{z_i}}{\sum_{j=1}^{C} e^{z_j}}\end{equation}
 
 \subsubsection{交叉熵损失}
 给定真实类别标签 $y$，交叉熵损失为：
-$$L = -\log(p_y) = -z_y + \log\left(\sum_{j=1}^{C} e^{z_j}\right)$$
+\begin{equation}\label{eq:resnet-auto-046}L = -\log(p_y) = -z_y + \log\left(\sum_{j=1}^{C} e^{z_j}\right)\end{equation}
 
 对于批量数据，损失取平均：
-$$L = \frac{1}{N}\sum_{n=1}^{N} \left(-z_{n,y_n} + \log\sum_{j=1}^{C} e^{z_{n,j}}\right)$$
+\begin{equation}\label{eq:resnet-auto-047}L = \frac{1}{N}\sum_{n=1}^{N} \left(-z_{n,y_n} + \log\sum_{j=1}^{C} e^{z_{n,j}}\right)\end{equation}
 
 \subsubsection{反向传播的推导}
 联合 Softmax 和交叉熵的梯度有一个非常简洁的形式 \cite{deeplearning}：
-$$\frac{\partial L}{\partial z_i} = p_i - \mathbf{1}_{[i=y]}$$
+\begin{equation}\label{eq:resnet-auto-048}\frac{\partial L}{\partial z_i} = p_i - \mathbf{1}_{[i=y]}\end{equation}
 
 即：对于正确类别，梯度为 $p_y - 1$（负值，推动增大）；对于错误类别，梯度为 $p_i$（正值，推动减小）。
 
 \textbf{推导过程：}
 
-$$\frac{\partial L}{\partial z_i} = \frac{\partial (-z_y + \log\sum_j e^{z_j})}{\partial z_i}$$
+\begin{equation}\label{eq:resnet-auto-049}\frac{\partial L}{\partial z_i} = \frac{\partial (-z_y + \log\sum_j e^{z_j})}{\partial z_i}\end{equation}
 
 当 $i = y$ 时：$\frac{\partial L}{\partial z_y} = -1 + \frac{e^{z_y}}{\sum_j e^{z_j}} = -1 + p_y = p_y - 1$
 
@@ -1173,7 +1173,7 @@ class CrossEntropyLoss:
 
 \subsubsection{最大池化层 (MaxPool2d)}
 最大池化在每个局部区域选取最大值，既能降低分辨率，又能保留显著特征：
-$$y_{c,h_o,w_o} = \max_{(i,j) \in R_{h_o,w_o}} x_{c, h_o \cdot s + i, w_o \cdot s + j}$$
+\begin{equation}\label{eq:resnet-auto-050}y_{c,h_o,w_o} = \max_{(i,j) \in R_{h_o,w_o}} x_{c, h_o \cdot s + i, w_o \cdot s + j}\end{equation}
 
 其中 $R_{h_o,w_o}$ 是以 $(h_o, w_o)$ 为中心的池化窗口。
 
@@ -1183,7 +1183,7 @@ $$y_{c,h_o,w_o} = \max_{(i,j) \in R_{h_o,w_o}} x_{c, h_o \cdot s + i, w_o \cdot 
 \textbf{反向传播：}
 
 梯度只流向前向传播时取得最大值的位置，其他位置梯度为零：
-$$\frac{\partial L}{\partial x_{c,h,w}} = \begin{cases} \frac{\partial L}{\partial y_{c,h_o,w_o}} & \text{if } (h,w) = \arg\max \\ 0 & \text{otherwise} \end{cases}$$
+\begin{equation}\label{eq:resnet-auto-051}\frac{\partial L}{\partial x_{c,h,w}} = \begin{cases} \frac{\partial L}{\partial y_{c,h_o,w_o}} & \text{if } (h,w) = \arg\max \\ 0 & \text{otherwise} \end{cases}\end{equation}
 
 \begin{lstlisting}
 class MaxPool2d(Layer):
@@ -1213,12 +1213,12 @@ class MaxPool2d(Layer):
 
 \subsubsection{全局平均池化层 (GlobalAvgPool2d)}
 全局平均池化将每个通道的空间维度压缩为单个值，是 ResNet 分类头的重要组成部分：
-$$y_c = \frac{1}{H \times W} \sum_{h=1}^{H} \sum_{w=1}^{W} x_{c,h,w}$$
+\begin{equation}\label{eq:resnet-auto-052}y_c = \frac{1}{H \times W} \sum_{h=1}^{H} \sum_{w=1}^{W} x_{c,h,w}\end{equation}
 
 \textbf{反向传播：}
 
 由于输出 $y_c$ 对每个输入位置的依赖是对称的，梯度均匀分配：
-$$\frac{\partial L}{\partial x_{c,h,w}} = \frac{1}{H \times W} \cdot \frac{\partial L}{\partial y_c}$$
+\begin{equation}\label{eq:resnet-auto-053}\frac{\partial L}{\partial x_{c,h,w}} = \frac{1}{H \times W} \cdot \frac{\partial L}{\partial y_c}\end{equation}
 
 \begin{lstlisting}
 class GlobalAvgPool2d(Layer):
@@ -1250,7 +1250,7 @@ class GlobalAvgPool2d(Layer):
 
 \subsubsection{链式法则的数学形式}
 对于复合函数 $L = f_n(f_{n-1}(\ldots f_1(\mathbf{x})\ldots))$，链式法则给出：
-$$\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}_n} \cdot \frac{\partial \mathbf{y}_n}{\partial \mathbf{y}_{n-1}} \cdot \ldots \cdot \frac{\partial \mathbf{y}_1}{\partial \mathbf{x}}$$
+\begin{equation}\label{eq:resnet-auto-054}\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}_n} \cdot \frac{\partial \mathbf{y}_n}{\partial \mathbf{y}_{n-1}} \cdot \ldots \cdot \frac{\partial \mathbf{y}_1}{\partial \mathbf{x}}\end{equation}
 
 \subsubsection{反向传播的计算图视角}
 每一层在前向传播时缓存必要的中间结果，反向传播时利用这些缓存计算局部梯度，然后与上游梯度相乘后传递给下一层 \cite{deeplearning}：
@@ -1262,7 +1262,7 @@ $$\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}
 
 \subsection{残差连接的梯度流}
 残差连接的一个关键优势是提供了梯度的高速计算通道\cite{resnet}。在残差块 $\mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{x}$ 中：
-$$\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}} \cdot \left( \frac{\partial \mathcal{F}}{\partial \mathbf{x}} + \mathbf{I} \right) = \frac{\partial L}{\partial \mathbf{y}} \cdot \frac{\partial \mathcal{F}}{\partial \mathbf{x}} + \frac{\partial L}{\partial \mathbf{y}}$$
+\begin{equation}\label{eq:resnet-auto-055}\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}} \cdot \left( \frac{\partial \mathcal{F}}{\partial \mathbf{x}} + \mathbf{I} \right) = \frac{\partial L}{\partial \mathbf{y}} \cdot \frac{\partial \mathcal{F}}{\partial \mathbf{x}} + \frac{\partial L}{\partial \mathbf{y}}\end{equation}
 
 恒等映射项 $\mathbf{I}$ 确保了即使 $\frac{\partial \mathcal{F}}{\partial \mathbf{x}}$ 很小，梯度仍能通过捷径路径畅通地流向更浅的层。
 
@@ -1270,20 +1270,20 @@ $$\frac{\partial L}{\partial \mathbf{x}} = \frac{\partial L}{\partial \mathbf{y}
 随机梯度下降（SGD）是深度学习中最基础且广泛使用的优化算法 \cite{deeplearning}。
 
 \subsubsection{基本 SGD}
-$$\theta_{t+1} = \theta_t - \eta \cdot \nabla_\theta L$$
+\begin{equation}\label{eq:resnet-auto-056}\theta_{t+1} = \theta_t - \eta \cdot \nabla_\theta L\end{equation}
 
 其中 $\eta$ 是学习率，$\nabla_\theta L$ 是损失对参数的梯度。
 
 \subsubsection{带动量的 SGD}
 动量方法由 Polyak \cite{momentum} 于 1964 年提出，通过累积历史梯度方向来加速收敛并减少振荡：
-$$\mathbf{v}_{t+1} = \mu \cdot \mathbf{v}_t - \eta \cdot \nabla_\theta L$$
-$$\theta_{t+1} = \theta_t + \mathbf{v}_{t+1}$$
+\begin{equation}\label{eq:resnet-auto-057}\mathbf{v}_{t+1} = \mu \cdot \mathbf{v}_t - \eta \cdot \nabla_\theta L\end{equation}
+\begin{equation}\label{eq:resnet-auto-058}\theta_{t+1} = \theta_t + \mathbf{v}_{t+1}\end{equation}
 
 其中 $\mu$ 是动量系数（通常为 0.9），$\mathbf{v}$ 是速度向量。
 
 \subsubsection{权重衰减（L2 正则化）}
 为防止过拟合，添加权重衰减项：
-$$\nabla_\theta L_{reg} = \nabla_\theta L + \lambda \cdot \theta$$
+\begin{equation}\label{eq:resnet-auto-059}\nabla_\theta L_{reg} = \nabla_\theta L + \lambda \cdot \theta\end{equation}
 
 其中 $\lambda$ 是权重衰减系数。
 
