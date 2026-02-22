@@ -455,8 +455,18 @@ Q_{\mathrm{DQS}} = &\ \alpha_{\uparrow}\odot \text{ShiftUp}(Q) + \alpha_{\downar
 所谓的Hilbert扫描也在此改进。
 
 SSS的RWKV块如下图所示\ref{fig:RWKV块，参看Vision RWKV与小米笔记}。
-在Spatial Mix中，
+在Spatial Mix中，经过Dynamic Q-shift的位移，$R_s$被送入Squared ReLU中，而$K_s$与$V_s$
+经过Hilbert scan后被送入Bi-WKV中。
 
+如图\ref{fig:RWKV块，参看Vision RWKV与小米笔记}所示，$K_s$与$V_s$总共经历两次扫描。第一次
+经历正方向的Hilbert扫描后，被送入第一道注意力模块中，为$wkv_1$。随后将 Hilbert Scan 的角度旋转 90 度，
+经历第一次扫描后的$K_s$与$wkv_1$再次进入 WKV 模块中，并输出最终的 WKV 模块$wkv_2$。
+
+在Channel Mix 中，我们遵循 Vision RWKV 的结构首先进入 Dynamic Q-shift。随后的$R_c$ 与 $V_c$ 分别经过 Sigmoid 以及 Squared ReLU，
+经过 Element-wise Multiplication 之后，再经过一道简单的 Norm 形成最终的输出。
+这就是整个 Stage Scan Structure WKV 块的整体结构。
+
+其中，wkv块的计算方式可以表示为
 
 
 
