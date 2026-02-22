@@ -455,10 +455,9 @@ Q_{\mathrm{DQS}} = &\ \alpha_{\uparrow}\odot \text{ShiftUp}(Q) + \alpha_{\downar
 所谓的Hilbert扫描也在此改进。
 
 SSS的RWKV块如下图所示\ref{fig:RWKV块，参看Vision RWKV与小米笔记}。
-特征经过 Dynamic Q-Shift 之后，分为 R-S、K-S 和 V-S。
+在Spatial Mix中，
 
-其中，R-S 与 V-S 经过希尔伯特扫描（Hilbert Scanning）进入到 WKV 块中，
-进行核心注意力机制的计算。在计算完毕之后，再次进行一次 WKV 的扫描。
+
 
 
 \section{Experiments}
