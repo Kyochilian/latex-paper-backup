@@ -381,7 +381,7 @@ Q-shift的公式如下：
 在本文网络中，为了缓解贪吃蛇效应，我们对Q-shift进行了改良，使其动态调整位移方向。
 
 设第 $i$ 个stage中，在窗口尺度 $w\in\{w_g,w_l(i)\}$ 下，块网格尺寸为 $G_i(w)=H_i/w$，序列长度为 $L_i(w)=G_i(w)^2$。
-由式(33)的 Hilbert 双射 $\pi^{(i,w)}_{\mathrm{H}}(t)=(r_t,c_t)$，我们可以为每个序号 $t$ 定义其在扫描路径上的“切向”方向（forward tangent）为
+由式\ref{eq:paper-auto-06}的 Hilbert 双射 $\pi^{(i,w)}_{\mathrm{H}}(t)=(r_t,c_t)$，我们可以为每个序号 $t$ 定义其在扫描路径上的“切向”方向（forward tangent）为
 \begin{equation}
 \mathbf{d}_t =
 \begin{cases}
@@ -394,17 +394,17 @@ Q-shift的公式如下：
 $\mathbf{d}_t\in\{(\pm1,0),(0,\pm1)\}$，即每一步仅在四邻域中移动一格。
 
 接着，令四个单位方向为
-\begin{equation}\label{eq:paper-auto-13}
+\begin{equation}
 \mathbf{e}_{\uparrow}=(-1,0),\quad 
 \mathbf{e}_{\downarrow}=(1,0),\quad
 \mathbf{e}_{\leftarrow}=(0,-1),\quad
 \mathbf{e}_{\rightarrow}=(0,1).
 \end{equation}
 对于任意方向 $\delta\in\{\uparrow,\downarrow,\leftarrow,\rightarrow\}$，定义其与扫描切向是否“共线”（即是否属于扫描路径方向）的指示量
-\begin{equation}\label{eq:paper-auto-14}
+\begin{equation}
 a_{t,\delta}=|\mathbf{d}_t^\top \mathbf{e}_{\delta}|\in\{0,1\},
 \end{equation}
-其中 $a_{t,\delta}=1$ 表示方向 $\delta$ 与扫描切向平行（位于扫描路径上，包含 forward/backward 两向），
+其中 $a_{t,\delta}=1$ 表示方向 $\delta$ 与扫描切向平行，
 而 $a_{t,\delta}=0$ 表示方向 $\delta$ 与扫描切向正交（位于扫描路径两侧）。
 
 \textbf{方向自适应权重。}
@@ -426,7 +426,7 @@ a_{t,\delta}=|\mathbf{d}_t^\top \mathbf{e}_{\delta}|\in\{0,1\},
 \end{equation}
 将 $\alpha_{t,\delta}$ 通过 $(r_t,c_t)=\pi^{(i,w)}_{\mathrm{H}}(t)$ 回填到二维网格上，可得权重图
 $\alpha_{\delta}\in\mathbb{R}^{G_i(w)\times G_i(w)}$，即
-\begin{equation}\label{eq:paper-auto-15}
+\begin{equation}
 \alpha_{\delta}(r_t,c_t)=\alpha_{t,\delta}.
 \end{equation}
 
@@ -441,14 +441,13 @@ Q_{\mathrm{DQS}} = &\ \alpha_{\uparrow}\odot \text{ShiftUp}(Q) + \alpha_{\downar
 \label{eq:dqs}
 \end{equation}
 其中 $\odot$ 表示逐位置乘法。
-
 式\ref{eq:dqs} 在形式上保持了 Vision RWKV 的四向位移结构，但通过式\ref{eq:tangent}--\ref{eq:alpha_norm}
-使位移方向随扫描路径动态变化。在扫描切向上施加更小的位移权重 $\alpha_{\parallel}$，
-而对扫描法向施加更大的位移权重 $\alpha_{\perp}$，从机制上增强二维近邻的信息交换，
-从而进一步缓解贪吃蛇效应并提升边界分割精度。
+使位移方向随扫描路径动态变化：在扫描切向上施加更小的位移权重 $\alpha_{\parallel}$，
+而对扫描法向施加更大的位移权重 $\alpha_{\perp}$，增强二维近邻的信息交换，
+从而进一步缓解贪吃蛇效应。
 
-需要强调的是，$\alpha_{\perp},\alpha_{\parallel}$ 不引入额外的注意力计算，仅产生常数级的逐点乘法开销；
-并且由于其仅由扫描顺序决定，在给定 $i,w$ 后可预计算，因此对推理速度影响极小。
+需要强调的是，$\alpha_{\perp},\alpha_{\parallel}$ 不引入额外的注意力计算，仅产生常数级的逐点乘法开销，
+并且由于其仅由扫描顺序决定，在给定 $i,w$ 后可预计算，因此对推理速度影响较小。
 
 \subsection{Core WKV}
 在原始的Vision RWKV中，RWKV块分为Spatial Mix与Channel Mix，其中Spatial Mix是RWKV的注意力的核心，
@@ -467,6 +466,7 @@ SSS的RWKV块如下图所示\ref{fig:RWKV块，参看Vision RWKV与小米笔记}
 这就是整个 Stage Scan Structure WKV 块的整体结构。
 
 其中，wkv块的计算方式可以表示为
+
 
 
 
