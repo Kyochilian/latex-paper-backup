@@ -1,0 +1,271 @@
+\documentclass[journal]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage[draft]{graphicx}
+\usepackage{algorithm,algorithmic}
+\usepackage[unicode]{hyperref}
+\hypersetup{hidelinks}
+\usepackage{textcomp}
+\usepackage[UTF8,scheme=plain,fontset=none]{ctex}
+\setCJKmainfont{PingFang SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{Heiti SC}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\markboth{\hskip25pc IEEE TRANSACTIONS AND JOURNALS TEMPLATE}
+{Author \MakeLowercase{\textit{et al.}}: Title}
+\begin{document}
+\title{Motif-enhanced Multi-level Mixture-of-Experts Fusion with Stability-aware Deep Clustering for Spatial Multi-Omics Domain Identification\\
+基于 Motif 增强、多层级专家混合融合与稳定深聚类的空间多组学区域识别方法}
+\author{First A. Author, \IEEEmembership{Member, IEEE}, Second B. Author, and Third C. Author
+\thanks{This work was supported in part by XXX.}
+\thanks{First A. Author and Second B. Author are with XXX (e-mail: xxx@xxx.edu).}
+\thanks{Third C. Author is with XXX (e-mail: xxx@xxx.edu).}}
+
+\maketitle
+
+\begin{abstract}
+Recent spatial multi-omics technologies enable simultaneous profiling of multiple molecular layers while preserving tissue coordinates, creating new opportunities for resolving tissue architecture and microenvironmental heterogeneity. However, spatial domain identification from paired omics remains difficult because first-order neighborhood graphs often miss higher-order tissue topology, local graph encoders alone cannot capture long-range dependencies, simple cross-modal aggregation may blur complementary and conflicting signals, and deep clustering can become unstable under imbalanced spatial domains. To address these issues, we present a motif-enhanced multi-level mixture-of-experts framework for spatial multi-omics domain identification. The method constructs a refined spatial graph and a motif-enhanced feature graph to encode spatial proximity, phenotypic similarity, and high-order local topology. For each omics view, a shared-weight dual-graph graph convolutional encoder is coupled with a transformer branch to jointly model local and global dependencies, followed by adaptive intra-omics fusion with residual global attention. Across omics, a mixture-of-experts router dynamically integrates complementary, interactive, variance-aware, and difference-aware signals. The training objective combines reconstruction pretraining, deep embedded clustering, cross-view consistency, cluster-usage regularization, and dead-cluster reinitialization to improve optimization stability. This manuscript is a bilingual draft generated from the provided outline and should be further finalized with leakage-free experiments and validated quantitative results.
+
+\vspace{0.5em}
+\noindent\textbf{中文摘要：}近期空间多组学技术能够在保留组织空间坐标的同时，对多个分子层进行联合测量，为解析组织结构和微环境异质性提供了新的机会。然而，配对组学数据的空间区域识别仍然具有挑战性，原因在于一阶邻域图往往无法充分刻画高阶组织拓扑，仅依赖局部图编码器难以建模长程依赖，简单的跨模态聚合容易混淆互补与冲突信号，而深聚类在空间区域分布不均衡时还可能出现训练不稳定。为解决上述问题，本文提出一种面向空间多组学区域识别的 motif 增强多层级专家混合框架。该方法通过构建 refined spatial graph 与 motif-enhanced feature graph，同时编码空间邻近关系、表型相似性以及高阶局部拓扑。对于每个组学视图，模型采用共享权重的双图图卷积编码器，并结合 transformer 分支联合建模局部与全局依赖，再通过带有全局残差注意力的自适应组学内融合得到表征。在跨组学层面，混合专家路由器动态整合互补、交互、方差感知和差异感知信号。训练目标联合使用重构预训练、深度嵌入聚类、跨视图一致性、簇使用率正则以及死亡簇重初始化，以提升优化稳定性。本文档是依据所给大纲整理得到的中英双语草稿，正式投稿前仍需补充无泄漏实验与经验证的定量结果。
+\end{abstract}
+
+\begin{IEEEkeywords}
+spatial multi-omics, spatial domain identification, graph neural network, mixture of experts, deep clustering, motif graph fusion
+\end{IEEEkeywords}
+
+\section{Introduction 引言}
+\label{sec:introduction}
+\IEEEPARstart{S}{patial} multi-omics technologies simultaneously profile multiple molecular layers while preserving tissue coordinates, enabling direct analysis of tissue architecture, cellular heterogeneity, and microenvironment-dependent regulation in intact biological systems \cite{kiessling2024review,modalnext2026}. Compared with single-omics spatial measurements, paired or multi-layer assays provide a richer representation of biological state because transcriptional, proteomic, and epigenomic signals are partially concordant but also complementary. This makes spatial multi-omics particularly suitable for identifying fine-grained spatial domains that cannot be robustly resolved from a single modality.
+
+空间多组学技术能够在保留组织空间坐标的同时，对多个分子层进行联合测量，从而支持对完整生物系统中的组织结构、细胞异质性以及微环境依赖调控进行直接分析 \cite{kiessling2024review,modalnext2026}。与单组学空间测量相比，配对或多层组学实验能够更充分地表征生物学状态，因为转录组、蛋白组和表观组信号之间既存在一致性，也存在互补性。因此，空间多组学特别适用于识别那些无法仅凭单一模态稳定解析的细粒度空间区域。
+
+Spatial domain identification is a core computational task for spatial multi-omics analysis because it provides the latent organizational map used by downstream marker discovery, pathway analysis, cell--cell interaction inference, and tissue microenvironment interpretation \cite{spatialglue2024,spafusion2025}. The task is commonly formulated as unsupervised clustering over spots or spatial barcodes under the joint constraints of molecular similarity and spatial coherence. In practice, successful domain identification requires a representation space that preserves local spatial continuity, high-order structural context, and cross-modal complementarity.
+
+空间区域识别是空间多组学分析中的核心计算任务，因为它为后续的标记物发现、通路分析、细胞间相互作用推断以及组织微环境解释提供了潜在组织图谱 \cite{spatialglue2024,spafusion2025}。该任务通常被表述为在分子相似性与空间一致性的联合约束下，对 spot 或 spatial barcode 进行无监督聚类。实际中，要实现可靠的区域识别，模型所学习到的表示空间必须同时保留局部空间连续性、高阶结构上下文以及跨模态互补信息。
+
+General-purpose non-spatial multi-omics integration methods provide strong baselines for integrating multiple molecular views, but they do not explicitly encode tissue topology and therefore do not directly solve spatial domain identification \cite{spatialglue2024,modalnext2026}. This mismatch becomes critical when two spots are molecularly similar but spatially separated, or spatially adjacent but molecularly divergent because of boundary effects or local transitions. Spatially informed models are therefore required.
+
+通用的非空间多组学整合方法虽然为多分子视图整合提供了有力基线，但它们并未显式编码组织拓扑，因此不能直接解决空间区域识别问题 \cite{spatialglue2024,modalnext2026}。当两个 spot 在分子特征上相似但空间位置相距较远，或者空间上相邻但由于边界效应和局部过渡而表现出明显分子差异时，这种不匹配会变得尤为突出。因此，需要显式考虑空间信息的建模框架。
+
+SpatialGlue is one of the foundational frameworks for spatial multi-omics integration. It combines a spatial graph and a feature graph, then performs hierarchical within-modality and between-modality fusion to learn a joint representation \cite{spatialglue2024}. Its main strength is the explicit use of both physical adjacency and molecular affinity. However, the model still relies primarily on first-order graph structure and does not fully address high-order local topology or long-range contextual dependency.
+
+SpatialGlue 是空间多组学整合领域的重要基础方法之一。它通过联合构建 spatial graph 与 feature graph，并在模态内与模态间进行层级融合，从而学习共享表示 \cite{spatialglue2024}。其优势在于同时显式利用了物理邻接关系和分子相似性。然而，该模型仍主要依赖一阶图结构，对高阶局部拓扑和长程上下文依赖的建模仍不充分。
+
+SpaFusion extends this line of work by introducing motif-based high-order graph construction and joint graph-plus-transformer learning for local-global spatial representation \cite{spafusion2025}. This substantially improves the ability to capture both local tissue organization and broader contextual relationships. Yet its cross-modal interaction remains relatively coarse-grained, and the handling of complementary versus conflicting multi-omics signals remains limited when compared with the complexity of real paired omics data.
+
+SpaFusion 在这一研究路线基础上进一步引入了基于 motif 的高阶图构建，以及 graph 与 transformer 结合的局部—全局表示学习机制 \cite{spafusion2025}。这显著增强了模型对局部组织结构与全局上下文关系的刻画能力。但其跨模态交互仍相对粗粒度，对于真实配对组学数据中互补信号与冲突信号的处理仍然有限。
+
+SpaMICS further emphasizes that cross-omics information contains both consistent and complementary components, and that effective integration should distinguish shared biological content from modality-specific structure \cite{spamics2026}. Although our target implementation does not adopt SpaMICS-style self-expression subspace decomposition, this problem formulation remains highly relevant because a static fusion rule can suppress useful complementary signals or overemphasize one modality.
+
+SpaMICS 进一步指出，跨组学信息同时包含一致性成分与互补性成分，因而有效整合应当区分共享生物学内容与模态特异结构 \cite{spamics2026}。尽管本文所对应的实现并未采用 SpaMICS 式的自表达子空间分解，但这一问题设定仍然高度相关，因为静态融合规则可能压制有价值的互补信号，或者过度放大某一模态。
+
+Recent work such as SpaBalance also highlights optimization imbalance in spatial multi-omics learning, including modality dominance, conflicting gradients, and unstable clustering behavior under skewed spatial-domain distributions \cite{spabalance2025}. While our implementation does not reproduce balanced gradient coordination, it motivates the design of stabilization mechanisms at the clustering stage, including cluster-usage regularization, softened target mixing, and dead-cluster reinitialization.
+
+SpaBalance 等近期研究还强调了空间多组学学习中的优化不平衡问题，包括模态主导、梯度冲突以及在空间区域分布偏斜时出现的聚类不稳定现象 \cite{spabalance2025}。虽然本文实现并未真正复现 balanced gradient coordination 机制，但这为聚类阶段的稳定化设计提供了动机，例如簇使用率正则、柔性目标混合以及死亡簇重初始化。
+
+Based on these observations, this paper positions the method as an integrated framework for high-order graph-enhanced local-global representation learning, expert-routed cross-modal fusion, and stability-aware deep clustering. The main contributions are fourfold:
+\begin{enumerate}
+    \item We construct motif-enhanced and biologically refined graphs to jointly encode spatial proximity, phenotypic similarity, and high-order topology.
+    \item We design a local-global intra-omics encoder that couples shared-weight dual-graph graph convolution with a transformer branch and adaptive residual attention fusion.
+    \item We introduce a mixture-of-experts cross-omics fusion module that dynamically routes complementary and conflicting modality signals.
+    \item We develop a stability-aware deep clustering objective to alleviate cluster collapse and improve robustness under imbalanced spatial domains.
+\end{enumerate}
+
+基于上述观察，本文将该方法定位为一个面向高阶图增强局部—全局表示学习、专家路由式跨模态融合以及稳定深聚类的一体化框架。其主要贡献体现在四个方面：
+\begin{enumerate}
+    \item 构建 motif 增强且具有生物学约束的图结构，以联合编码空间邻近性、表型相似性与高阶拓扑信息。
+    \item 设计组学内局部—全局编码器，将共享权重的双图图卷积与 transformer 分支及自适应残差注意力融合结合起来。
+    \item 引入混合专家跨组学融合模块，以动态路由互补信号与冲突信号。
+    \item 构建稳定感知的深聚类目标，以减轻簇坍塌并提升在不均衡空间区域上的鲁棒性。
+\end{enumerate}
+
+\section{Related Work 相关工作}
+
+\subsection{Spatial Multi-Omics Integration 空间多组学整合}
+Spatial multi-omics has rapidly emerged as a major direction for tissue-scale systems biology because it links histological structure with multiple molecular layers in situ \cite{kiessling2024review,modalnext2026}. Computationally, the central challenge is no longer only representation alignment, but the joint modeling of molecular heterogeneity and spatial organization. This shifts the goal from generic latent integration toward spatially meaningful domain discovery.
+
+空间多组学已迅速成为组织尺度系统生物学的重要方向，因为它能够在原位条件下将组织学结构与多层分子信息关联起来 \cite{kiessling2024review,modalnext2026}。从计算角度看，核心挑战已不再只是表示对齐，而是分子异质性与空间组织结构的联合建模。这使得研究目标从一般性的潜在空间整合，转向具有空间生物学意义的区域发现。
+
+\subsection{Spatially Informed Dual-Graph Learning 空间感知双图学习}
+SpatialGlue established an influential dual-graph paradigm by jointly modeling spatial adjacency and feature similarity, then combining them through hierarchical attention-based fusion \cite{spatialglue2024}. This framework demonstrated that spatial context and molecular affinity should be treated as complementary rather than interchangeable sources of information. Our method inherits this design logic, but extends it with graph refinement and higher-order topology.
+
+SpatialGlue 通过联合建模空间邻接关系与特征相似性，并利用层级注意力机制进行融合，建立了具有代表性的双图学习范式 \cite{spatialglue2024}。这一框架表明，空间上下文与分子亲和性应当被视为互补而非可互换的信息来源。本文方法继承了这一设计逻辑，并在此基础上进一步引入图 refinement 与高阶拓扑建模。
+
+\subsection{High-Order Graph and Local-Global Representation Learning 高阶图与局部—全局表示学习}
+SpaFusion introduced motif-based high-order graph construction and the joint use of graph encoders and transformer modules to model local and global dependencies \cite{spafusion2025}. These components are important because spatial tissue organization is not fully characterized by pairwise edges alone. Our method adopts this broader local-global perspective and uses it as the architectural backbone.
+
+SpaFusion 提出了基于 motif 的高阶图构建方法，并联合使用图编码器和 transformer 模块来建模局部依赖与全局依赖 \cite{spafusion2025}。这些组件之所以重要，是因为空间组织结构并不能仅由成对边关系充分表征。本文方法吸收了这种更广义的局部—全局建模视角，并以其作为整体架构主干。
+
+\subsection{Consistent and Complementary Cross-Omics Modeling 一致与互补的跨组学建模}
+SpaMICS frames cross-omics integration as the joint modeling of shared and modality-specific information \cite{spamics2026}. This viewpoint is useful even when one does not explicitly adopt self-expression subspace learning. In our setting, it motivates the need for a more expressive fusion mechanism that can preserve complementarity without ignoring modality discrepancy.
+
+SpaMICS 将跨组学整合表述为共享信息与模态特异信息的联合建模问题 \cite{spamics2026}。即便不显式采用自表达子空间学习，这一视角依然具有启发性。在本文设定下，它直接推动我们设计更具表达能力的融合机制，以在保留互补性的同时不过度忽略模态差异。
+
+\subsection{Balanced and Robust Optimization 平衡且稳健的优化}
+SpaBalance and related studies point out that multi-omics learning may suffer from imbalance across views and unstable optimization \cite{spabalance2025,bmcst2025}. Such concerns are particularly relevant to deep clustering, where cluster collapse or dominant-view behavior can degrade final spatial domains. Our method addresses this issue not through gradient balancing, but through clustering stabilization mechanisms.
+
+SpaBalance 及相关研究指出，多组学学习可能受到视图间不平衡与优化不稳定的影响 \cite{spabalance2025,bmcst2025}。这类问题在深聚类任务中尤为突出，因为簇坍塌或单视图主导都会降低最终空间区域划分质量。本文并非通过梯度平衡来处理该问题，而是通过聚类稳定化机制予以缓解。
+
+\subsection{Summary of Remaining Gaps 现有不足总结}
+Existing methods still leave four gaps: insufficient joint modeling of first-order, high-order, and long-range structure; limited dynamic handling of complementary and conflicting cross-omics signals; inadequate stabilization under imbalanced spatial domains; and the lack of a unified framework spanning graph construction, representation learning, fusion, and clustering stabilization.
+
+现有方法仍然存在四方面不足：其一，尚未充分联合建模一阶结构、高阶结构与长程依赖；其二，对于跨组学互补信号与冲突信号的动态处理能力有限；其三，面对不均衡空间区域时缺乏足够的稳定优化机制；其四，缺少一个同时覆盖图构建、表示学习、跨模态融合与聚类稳定化的一体化框架。
+
+\section{Method 方法}
+
+\subsection{Problem Formulation and Notation 问题定义与符号说明}
+Let $X^{(1)} \in \mathbb{R}^{N\times d_1}$ and $X^{(2)} \in \mathbb{R}^{N\times d_2}$ denote two omics measurements collected on the same set of $N$ spatial spots, and let $L \in \mathbb{R}^{N\times 2}$ denote their spatial coordinates. The goal is to learn a fused embedding $Z \in \mathbb{R}^{N\times d}$ for unsupervised spatial domain identification.
+
+设 $X^{(1)} \in \mathbb{R}^{N\times d_1}$ 与 $X^{(2)} \in \mathbb{R}^{N\times d_2}$ 分别表示在同一组 $N$ 个空间 spot 上获得的两种组学观测，$L \in \mathbb{R}^{N\times 2}$ 表示对应的空间坐标。本文目标是学习一个融合嵌入表示 $Z \in \mathbb{R}^{N\times d}$，用于无监督空间区域识别。
+
+\subsection{Data Preprocessing and Graph Construction 数据预处理与图构建}
+The implementation follows omics-specific preprocessing before graph construction. RNA data are filtered, normalized, log-transformed, scaled, and projected into a principal-component space. ADT data are CLR-normalized, scaled, and likewise projected into a lower-dimensional feature space. Based on these processed inputs, the method builds a spatial KNN graph from coordinates and a feature KNN graph from molecular features.
+
+在图构建之前，模型首先执行组学特异的数据预处理。对于 RNA 数据，流程包括过滤、归一化、对数变换、标准化以及 PCA 降维；对于 ADT 数据，则采用 CLR 归一化、标准化和相应的低维特征投影。基于这些处理后的输入，模型分别从空间坐标构建 spatial KNN graph，从分子特征构建 feature KNN graph。
+
+To capture higher-order local structure, a 3-node motif co-occurrence matrix is extracted from the feature graph and combined with the original feature adjacency to form a motif-enhanced feature graph. In parallel, the spatial graph is refined by Hadamard interaction with the feature graph,
+\begin{equation}
+A_r = A_s \odot A_f,
+\label{eq:refined_graph}
+\end{equation}
+where $A_s$, $A_f$, and $A_r$ denote the spatial graph, feature graph, and refined spatial graph, respectively.
+
+为了刻画高阶局部结构，模型从 feature graph 中提取 3-node motif 共现矩阵，并将其与原始特征邻接关系结合，形成 motif-enhanced feature graph。与此同时，空间图通过与特征图进行 Hadamard 乘积得到 refinement：
+\begin{equation}
+A_r = A_s \odot A_f,
+\end{equation}
+其中 $A_s$、$A_f$ 和 $A_r$ 分别表示空间图、特征图和 refined spatial graph。
+
+\subsection{Local-Global Intra-Omics Representation Learning 组学内局部—全局表示学习}
+For each omics view, the model uses a shared-weight dual-graph graph convolutional encoder together with a transformer branch. The refined spatial graph branch captures local tissue continuity, the motif-enhanced feature graph branch captures higher-order molecular similarity, and the transformer branch captures long-range global dependency. Denoting the resulting embeddings as $Z_s^{(v)}$, $Z_f^{(v)}$, and $Z_g^{(v)}$, the model preserves both graph-local and context-global information within each modality.
+
+对于每个组学视图，模型采用共享权重的双图图卷积编码器，并额外引入 transformer 分支。refined spatial graph 分支负责刻画局部组织连续性，motif-enhanced feature graph 分支用于捕获高阶分子相似性，而 transformer 分支则负责建模长程全局依赖。记得到的三类嵌入分别为 $Z_s^{(v)}$、$Z_f^{(v)}$ 和 $Z_g^{(v)}$，则该设计能够在每个模态内部同时保留图局部信息与上下文全局信息。
+
+\subsection{Adaptive Intra-Omics Fusion 自适应组学内融合}
+The three branches are fused by learnable adaptive weights rather than a fixed average. For omics view $v$, the fused embedding is written as
+\begin{equation}
+Z^{(v)} = \alpha_a \odot Z_s^{(v)} + \alpha_b \odot Z_f^{(v)} + \alpha_c \odot Z_g^{(v)},
+\label{eq:intra_fusion}
+\end{equation}
+where $\alpha_a$, $\alpha_b$, and $\alpha_c$ are normalized learnable coefficients. A residual global-attention module can be further applied to strengthen long-range dependency modeling.
+
+三个分支并不是通过固定平均进行融合，而是采用可学习的自适应权重。对于组学视图 $v$，其融合表示写为
+\begin{equation}
+Z^{(v)} = \alpha_a \odot Z_s^{(v)} + \alpha_b \odot Z_f^{(v)} + \alpha_c \odot Z_g^{(v)},
+\end{equation}
+其中 $\alpha_a$、$\alpha_b$ 和 $\alpha_c$ 为归一化后的可学习系数。随后还可以进一步引入残差式全局注意力模块，以强化长程依赖建模能力。
+
+\subsection{Mixture-of-Experts Cross-Omics Fusion 混合专家跨组学融合}
+To integrate the two omics views, the framework employs a mixture-of-experts router instead of static weighted summation. The router receives rich interaction features, including the two unimodal embeddings, their element-wise product, and their absolute difference. Different experts are designed to model complementary gating, multiplicative interaction, variance-aware fusion, and discrepancy-aware fusion. The final fused embedding is expressed as
+\begin{equation}
+Z = \sum_{m=1}^{M} \pi_m E_m\bigl(Z^{(1)}, Z^{(2)}\bigr),
+\label{eq:moe}
+\end{equation}
+where $E_m(\cdot)$ denotes the $m$-th expert and $\pi_m$ denotes its routing weight.
+
+为了整合两个组学视图，本文框架并未采用静态加权求和，而是引入混合专家路由器。该路由器接收更丰富的交互特征作为输入，包括两个单模态嵌入、它们的逐元素乘积以及绝对差值。不同专家分别用于建模互补门控、乘性交互、方差感知融合和差异感知融合。最终融合嵌入可以表示为
+\begin{equation}
+Z = \sum_{m=1}^{M} \pi_m E_m\bigl(Z^{(1)}, Z^{(2)}\bigr),
+\end{equation}
+其中 $E_m(\cdot)$ 表示第 $m$ 个专家，$\pi_m$ 表示对应的路由权重。
+
+\subsection{Reconstruction Pretraining and Deep Clustering 重构预训练与深聚类}
+Training follows a two-stage paradigm. In the first stage, the encoder-decoder architecture is pretrained with reconstruction losses to stabilize the latent manifold before clustering. In the second stage, cluster centers are initialized by K-means in the fused embedding space and deep embedded clustering is performed. Let $Q$, $Q_1$, and $Q_2$ denote soft assignments from the fused and unimodal embeddings. The method uses convex target mixing,
+\begin{equation}
+Q_{\mathrm{mix}} = (1-\alpha)Q + \frac{\alpha}{2}(Q_1 + Q_2),
+\label{eq:qmix}
+\end{equation}
+and optimizes the clustering objective
+\begin{equation}
+\mathcal{L}_{\mathrm{clu}} = \mathrm{KL}(P\|Q_{\mathrm{mix}}),
+\label{eq:clusterloss}
+\end{equation}
+where $P$ is the target distribution computed from the fused branch.
+
+训练过程遵循两阶段范式。第一阶段中，编码器—解码器架构首先通过重构损失进行预训练，以在聚类前稳定潜在流形。第二阶段中，在融合嵌入空间中利用 K-means 初始化聚类中心，并执行深度嵌入聚类。记融合嵌入及两个单模态嵌入对应的软分配分别为 $Q$、$Q_1$ 和 $Q_2$。方法采用凸组合形式的目标混合：
+\begin{equation}
+Q_{\mathrm{mix}} = (1-\alpha)Q + \frac{\alpha}{2}(Q_1 + Q_2),
+\end{equation}
+并优化如下聚类目标：
+\begin{equation}
+\mathcal{L}_{\mathrm{clu}} = \mathrm{KL}(P\|Q_{\mathrm{mix}}),
+\end{equation}
+其中 $P$ 是由融合分支计算得到的目标分布。
+
+\subsection{Stability-Aware Regularization 稳定感知正则化}
+To reduce cluster collapse and improve robustness under imbalanced spatial domains, the method incorporates cross-view consistency, cluster-usage regularization, optional center separation, and dead-cluster reinitialization. The overall objective can be written as
+\begin{equation}
+\mathcal{L} = \mathcal{L}_{\mathrm{pre}} + \mathcal{L}_{\mathrm{clu}} + \beta \mathcal{L}_{\mathrm{cons}} + \gamma \mathcal{L}_{\mathrm{usage}} + \eta \mathcal{L}_{\mathrm{sep}}.
+\label{eq:full_loss}
+\end{equation}
+These terms encourage alignment across views, prevent highly underused clusters, and improve optimization stability.
+
+为了减轻簇坍塌并提升在不均衡空间区域上的鲁棒性，模型进一步引入跨视图一致性、簇使用率正则、可选的中心分离项以及死亡簇重初始化。整体目标函数可以写为
+\begin{equation}
+\mathcal{L} = \mathcal{L}_{\mathrm{pre}} + \mathcal{L}_{\mathrm{clu}} + \beta \mathcal{L}_{\mathrm{cons}} + \gamma \mathcal{L}_{\mathrm{usage}} + \eta \mathcal{L}_{\mathrm{sep}}.
+\end{equation}
+这些项共同促进不同视图间的表征对齐，抑制严重低使用率簇的出现，并提高整体优化稳定性。
+
+\subsection{Complexity and Implementation Considerations 复杂度与实现说明}
+The framework improves representational expressiveness at the cost of higher computational complexity. Explicit 3-node motif enumeration increases graph-construction overhead relative to standard pairwise KNN graphs. The residual global-attention module introduces quadratic spot-to-spot complexity, and the transformer branch also increases memory usage. Therefore, the current implementation is better suited to paired spatial multi-omics datasets at current mainstream scale than to ultra-large spot collections.
+
+该框架在提升表示能力的同时，也带来了更高的计算复杂度。显式 3-node motif 枚举相较于标准成对 KNN 图会增加图构建开销；残差式全局注意力模块带来关于 spot 数量的二次复杂度；transformer 分支也会额外增加显存占用。因此，当前实现更适合主流规模的配对空间多组学数据，而非超大规模 spot 集合。
+
+\section{Experimental Design and Evaluation Protocol 实验设计与评估协议}
+
+\subsection{Recommended Benchmark Setting 建议基准设置}
+The provided outline indicates that the current implementation targets paired spatial transcriptome--proteome datasets, including a dataset denoted as D1. A complete experimental section should compare the proposed method against representative baselines such as SpatialGlue, SpaFusion, SpaMICS, and related methods where feasible. Evaluation should include ARI, NMI, ACC, and macro-F1 when reference annotations are available, together with qualitative visualization of spatial domains and biological interpretation.
+
+根据所给大纲，当前实现主要面向配对的空间转录组—蛋白组数据集，其中包括一个记为 D1 的数据集。完整实验部分应将本文方法与 SpatialGlue、SpaFusion、SpaMICS 及其他可行相关方法进行比较。评估指标在存在参考注释时可包括 ARI、NMI、ACC 和 macro-F1，同时还应结合空间区域可视化结果与生物学解释进行分析。
+
+\subsection{Critical Protocol Constraint 关键协议约束}
+A key implementation caveat must be corrected before reporting formal unsupervised results. The current workflow can use ground-truth labels to compute evaluation metrics during optimization and may select checkpoints according to ARI or similar annotation-based criteria. This is acceptable for development diagnostics but not for formal unsupervised benchmarking. Therefore, the final paper should report results only after removing ground-truth-guided checkpoint selection and rerunning all experiments under a leakage-free protocol.
+
+在正式汇报无监督结果之前，必须先修正一个关键实现问题。当前流程可能在优化过程中使用真实标签计算评估指标，并依据 ARI 或其他依赖注释的指标进行 checkpoint 选择。这对于开发阶段诊断是可以接受的，但并不符合正式无监督基准评测的要求。因此，最终论文只能在去除基于真实标签的模型选择后，重新运行全部实验，并在无泄漏协议下报告结果。
+
+\subsection{Implementation Notes That Should Be Stated Honestly 需要如实说明的实现细节}
+Two additional implementation details should be documented precisely. First, the two graph branches within each omics view share encoder weights; the method should therefore be described as using shared-weight dual-graph graph convolution rather than two independent graph encoders. Second, if the argument controlling feature-graph neighborhood size is not actually propagated into graph construction, then sensitivity analysis on this hyperparameter should not be claimed until the implementation is corrected and rerun.
+
+另外还有两个实现细节需要准确说明。第一，每个组学视图中的两条图分支共享编码器权重，因此方法应表述为 shared-weight dual-graph graph convolution，而不是两个独立图编码器。第二，如果控制 feature-graph 邻居数的参数并未真正传入图构建过程，那么在修正实现并重新实验之前，不应声称已经完成该超参数的敏感性分析。
+
+\subsection{Suggested Result Presentation Structure 建议结果展示结构}
+After rerunning experiments, the final manuscript can include a main quantitative comparison table, ablation studies for motif graph construction and MoE fusion, sensitivity analysis for neighborhood size and clustering regularization, visualization of learned spatial domains, and biological case studies on marker coherence or tissue-boundary delineation. These components are intentionally left as placeholders in the current draft to avoid fabricating unsupported numerical claims.
+
+在重新运行实验之后，最终稿可以包含以下结果部分：主定量比较表、针对 motif 图构建与 MoE 融合的消融实验、针对邻居数与聚类正则项的敏感性分析、学习到的空间区域可视化，以及关于标记物一致性或组织边界划分的生物学案例分析。当前草稿中这些内容被有意保留为空位，以避免虚构未经验证的数值结论。
+
+\section{Discussion 讨论}
+The method is most accurately understood not as a direct reproduction of SpatialGlue, SpaFusion, SpaMICS, or SpaBalance, but as a hybrid framework with a SpaFusion-style backbone, SpatialGlue-inspired dual-graph logic, MoE-based cross-modal routing, and stability-oriented deep clustering. This distinction matters for correct positioning. The current implementation supports a strong narrative around high-order topology, local-global representation, complementary cross-modal fusion, and robust clustering, but it should not be described as consistent-specific subspace learning or balanced gradient coordination because those mechanisms are not actually implemented.
+
+更准确地说，本文方法并不是对 SpatialGlue、SpaFusion、SpaMICS 或 SpaBalance 中任何一个方法的直接复现，而是一个混合型框架：以 SpaFusion 风格的主干为基础，吸收 SpatialGlue 的双图逻辑，并加入基于 MoE 的跨模态路由与稳定导向的深聚类。明确这一定位非常重要。当前实现确实能够支撑关于高阶拓扑、局部—全局表示、跨模态互补融合和稳健聚类的完整叙事，但不应将其表述为 consistent-specific subspace learning 或 balanced gradient coordination，因为这些机制实际上并未被实现。
+
+The proposed formulation has several practical advantages. Graph refinement can suppress noisy spatial edges, motif augmentation can better capture recurrent local structure, the transformer branch can recover long-range context, and expert routing can adapt to cross-modal agreement and disagreement. Stability-aware clustering further addresses one of the most common failure modes in deep clustering pipelines, namely dead or highly underutilized clusters.
+
+该方法具有若干实际优势。图 refinement 有助于抑制噪声空间边，motif 增强能够更好地捕获重复出现的局部结构，transformer 分支有利于恢复长程上下文，而专家路由则能自适应处理跨模态的一致与不一致情况。稳定感知聚类进一步缓解了深聚类流程中最常见的失败模式之一，即死亡簇或极低利用率簇。
+
+The main limitations are computational cost, implementation sensitivity, and the need for rigorous experimental control. Motif enumeration and full attention are expensive. The final scientific claim also depends on leakage-free benchmarking and precise reporting of what the code truly implements. For this reason, the paper should prioritize methodological fidelity and transparent evaluation over aggressive performance claims.
+
+该方法的主要局限在于计算代价较高、实现细节较为敏感，以及对严格实验控制的依赖。motif 枚举和全连接注意力都会带来较大开销。最终科学结论还依赖于无泄漏基准评测，以及对代码真实实现内容的准确说明。因此，论文应优先保证方法描述的忠实性和评估过程的透明性，而不是急于做出激进的性能宣称。
+
+\section{Conclusion 结论}
+This paper presents a structured manuscript formulation for a spatial multi-omics framework centered on motif-enhanced graph construction, local-global intra-omics encoding, mixture-of-experts cross-omics fusion, and stability-aware deep clustering. The resulting method is positioned as an integrated solution for spatial domain identification under complex topology, complementary modality interactions, and imbalanced cluster distributions. The remaining step before formal submission is to complete leakage-free experiments, insert validated quantitative results, and finalize dataset-specific tables and figures.
+
+本文给出了一个围绕 motif 增强图构建、组学内局部—全局编码、混合专家跨组学融合以及稳定深聚类展开的空间多组学论文组织方案。该方法被定位为一个用于解决复杂拓扑、模态互补交互以及不均衡簇分布条件下空间区域识别问题的一体化框架。在正式投稿之前，仍需完成无泄漏实验、补入经过验证的定量结果，并最终完善与具体数据集对应的表格和图示。
+
+\section*{Acknowledgment 致谢}
+The authors thank all collaborators and data providers. Specific funding, institutional acknowledgments, and data-access statements should be inserted here.
+
+作者感谢所有合作人员与数据提供方。具体基金信息、机构致谢及数据获取声明应在此处补充完整。
+
+\begin{thebibliography}{00}
+\bibitem{kiessling2024review} F. Kiessling and C. Kuppe, ``Spatial multi-omics: Concepts, applications, and future directions,'' 2024.
+\bibitem{spatialglue2024} J. Dong \textit{et al.}, ``SpatialGlue: Integration of spatial multi-omics data with spatially informed graph neural networks,'' \textit{Nature Methods}, 2024.
+\bibitem{spafusion2025} Y. Zhang \textit{et al.}, ``SpaFusion: High-order graph and local-global representation learning for spatial multi-omics clustering,'' 2025.
+\bibitem{spamics2026} X. Liu \textit{et al.}, ``SpaMICS: Consistent and complementary information modeling for spatial multi-omics clustering,'' 2026.
+\bibitem{spabalance2025} H. Wang \textit{et al.}, ``SpaBalance: Balanced learning for robust spatial multi-omics integration,'' 2025.
+\bibitem{modalnext2026} A. Author \textit{et al.}, ``Modal-NexT: Unified integration of heterogeneous cellular data,'' 2026.
+\bibitem{bmcst2025} B. Author \textit{et al.}, ``Balanced multi-view clustering with structure transfer,'' 2025.
+\end{thebibliography}
+
+\end{document}
