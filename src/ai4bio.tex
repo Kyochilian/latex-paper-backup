@@ -8,18 +8,18 @@
 
 \begin{document}
 
-\title{scMEM:Motif-Enhanced Mixture-of-Experts Framework for Spatial Multi-Omics Domain Identification}
+\title{SMEM: A Mixture-of-Experts Routing Global-Local Framework for Spatial Multi-Omics Domain Identification}
 
 \author{[作者信息占位]}
 
 \maketitle
 
 \begin{abstract}
-\noindent\textbf{使用方式：}本部分只保留摘要写作框架与提醒，不写论文正文。正式成稿时请删除中括号提示，并将以下内容改写为一个完整连续段落。建议整体写成 7--8 句，控制在 180--230 词；摘要中通常不放参考文献。
 
-\noindent\textbf{句 1（技术背景）：} [写空间多组学为什么重要。不要从“deep learning is powerful”开头，而要从“空间多组学同时保留组织结构和多层分子信息”开头，强调其为解析空间域与组织异质性提供了新的机会。]
+空间多组学技术能够同时测量组织结构、空间数据及多层分子信息，为解析细胞组织与组织异质性提供了新的机会，在生理病理领域至关重要。近年来，基于空间多组学的整合分析取得了显著进展，基于机器学习的聚类整合方法应运而生。
+然而，当前的空间多组学聚类仍然面临挑战，现有方法存在诸多不足，其基于图的方法不足以表示复杂的生物组织拓扑结构，并且会丢失全局上下文。在后续的information fusion中，大多方法仅限于简单的加权与连接，无法有效整合各空间组学的信息；同时，
+深聚类在不平衡空间域下容易出现 cluster collapse，容易出现簇塌陷或次优整合。
 
-\noindent\textbf{句 2（核心挑战）：} [明确写出 4 个关键挑战：一阶图不足以表示复杂组织拓扑；仅局部建模会丢失长程上下文；简单跨模态加权难以处理互补/冲突信息；深聚类在不平衡空间域下容易出现 cluster collapse。这里的理论支撑可参考：\textit{2024-NM-SpatialGlue.pdf}、\textit{Chen 等 - 2025 - SpaFusion A multi-level fusion model for clustering spatial multi-omics data.pdf}、\textit{Cai 等 - 2026 - Identifying spatial domains from spatial multi-omics data using consistent and specific deep subspac.pdf}、\textit{Cui 等 - SpaBalance Balanced Learning for Efficient Spatial Multi-Omics Decoding.pdf}。]
 
 \noindent\textbf{句 3（提出方法）：} [用一句话给出方法全称和总框架，只保留 4 个关键词：motif 增强图构建（motif-enhanced graph construction）、局部--全局组学内编码（local-global intra-omics encoding）、专家混合跨组学融合（mixture-of-experts cross-omics fusion）、稳定性感知深聚类（stability-aware deep clustering）。]
 
