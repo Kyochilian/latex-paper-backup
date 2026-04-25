@@ -10,65 +10,107 @@
 
 \title{SMEM: A Mixture-of-Experts Routing Global-Local Framework for Spatial Multi-Omics Domain Identification}
 
-\author{[作者信息占位]}
+\author{Haobin~Xu}
 
 \maketitle
 
 \begin{abstract}
 
-空间多组学技术能够同时测量组织结构、空间数据及多层分子信息，为解析细胞组织与组织异质性提供了新的机会，在生理病理领域至关重要。近年来，基于空间多组学的整合分析取得了显著进展，基于机器学习的聚类整合方法应运而生。
-然而，当前的空间多组学聚类仍然面临挑战，现有方法存在诸多不足，其基于图的方法不足以表示复杂的生物组织拓扑结构，并且会丢失全局上下文。在后续的information fusion中，大多方法仅限于简单的加权与连接，无法有效整合各空间组学的信息；同时，
-深聚类在不平衡空间域下容易出现 cluster collapse，容易出现簇塌陷或次优整合。
-
-
-\noindent\textbf{句 3（提出方法）：} [用一句话给出方法全称和总框架，只保留 4 个关键词：motif 增强图构建（motif-enhanced graph construction）、局部--全局组学内编码（local-global intra-omics encoding）、专家混合跨组学融合（mixture-of-experts cross-omics fusion）、稳定性感知深聚类（stability-aware deep clustering）。]
-
-\noindent\textbf{句 4（组学内模块）：} [写 refined spatial graph + motif-enhanced feature graph + transformer global branch，突出“局部与全局同时建模”。]
-
-\noindent\textbf{句 5（跨组学模块）：} [写 dynamic expert routing，不要把这一部分写成简单的 attention fusion。]
-
-\noindent\textbf{句 6（训练目标）：} [写 reconstruction + clustering + cross-view consistency + cluster stabilization。不要写具体超参数，不要写命令行。]
-
-\noindent\textbf{句 7（结果表达方式）：} [在正式实验设置修正后，可写“在公开空间 transcriptome--proteome 数据上优于现有方法，并在 D1 上相对 SpaFusion 提升约 5 个百分点”；但前提是先去掉 ground-truth-guided best-epoch 选择，不能继续使用 ARI-guided checkpoint selection 作为正式无监督主结果的模型选择方式。]
-
-\noindent\textbf{句 8（意义）：} [最后一句不要只写“性能更好”，要写“更准确地 delineate fine-grained spatial domains，并更稳定地支持 downstream biological interpretation”。]
+空间多组学技术能够同时测量空间数据及多层分子信息，为解析细胞组织与组织异质性提供了新的方式，在生理病理领域至关重要。近年来，基于空间多组学的聚类分析取得了显著进展，但现有方法存在诸多不足，
+大多数一阶图不足以表示复杂组织拓扑，并且会丢失长程上下文；现有方法主要依赖固定融合策略，仅限于简单模态加权，无法有效整合各组学的信息；同时，
+深聚类在不平衡空间域下容易出现 cluster collapse。为此，我们提出SMEM，一种基于MoE整合的空间多组学框架。
+首先，我们引入motif高阶图，丰富局部细胞拓扑；
+其次，模型通过图编码器与基于Transformer的空间表征，同时捕获局部和全局特征；
+最后，在信息融合阶段，引入 MoE 模块，通过动态门控，实现dynamic expert routing，将每个 spot 路由到专门化专家。
+我们还设计了稳定性感知的聚类优化策略，以缓解死簇塌陷并提升训练鲁棒性。
+大量实验表明，SMEM的聚类性能优于目前所有的最先进方法，并产生了更具连贯性和生物可解释性的空间域，为鲁棒的空间多组学解码与下游生物分析提供了有效方案。
 \end{abstract}
 
 \begin{IEEEkeywords}
-[后续正式填写关键词；此处仅保留框架。可围绕 spatial multi-omics、domain identification、motif graph、mixture of experts、deep clustering 等组织。]
+spatial multi-omics、domain identification、motif graph、mixture of experts、deep clustering
 \end{IEEEkeywords}
 
-\section{引言（Introduction）}
+\section{Introduction}
 
 \noindent\textbf{本节整体写法：}引言建议写成 8 段。写作节奏应当是：先讲空间多组学的生物学意义与任务价值，再指出现有方法的不足，随后过渡到你的方法定位，最后用 4 点贡献收束。不要在引言中堆公式，不要过早进入实现细节。
 
 \subsection*{第 1 段：空间多组学的生物学意义}
 \textbf{写什么：} [从空间组织结构、细胞异质性、微环境依赖调控切入，说明空间多组学为什么不是简单的“多模态 + 空间”，而是组织生物学和疾病研究中的关键数据范式。]
 
+细胞的空间组织是组织功能的基本决定因素，也是理解并研究生理病理机制的关键。
+单细胞RNA测序(scRNA-seq)等单组学测量技术已经发展成熟，并改变了我们对细胞类型发现与理解的方式，但其基于解离的检测破坏了原生组织上下文，致使无法有效解析组学间的空间信息；
+而空间转录组学，保留了组织原位信息，但通常仍局限于单一分子层面的测量，难以同时捕获表观遗传、蛋白质和代谢等多层级调控信息，也难以完整表征细胞状态转换、细胞间通讯及微环境依赖的分子机制。
+此外，不同空间转录组平台在空间分辨率、检测通量、分子覆盖度和样本兼容性之间仍需权衡，单独依赖转录层信息也难以反映转录后调控和蛋白质功能状态。~\cite{"空间多组学整合综述"}
+
+近年来，基于空间的多组学方法开始兴起，在2022年被《自然》杂志列为七大关键技术之一,测量对象已从单一分子层扩展到同一细胞或同一组织切片上的多模态共测量，
+使研究者能够同时观察细胞内分子状态与细胞间空间组织规律。
+与单组学技术不同，空间多组学展现组织结构、细胞状态、分子层级与微环境依赖调控之间的关联，
+通过对单细胞基因组、转录组、蛋白质组等及空间信息的联合分析，解析细胞相互作用、空间邻域和疾病相关分子回路。
+目前主流的空间多组学技术大体可分为三类，第一类是测序/空间条形码型，包括基于阵列、珠子或微流控条形码的路线，代表平台有 Visium、Slide-seq、Stereo-seq、DBiT-seq，
+以及在其基础上扩展出的 SPOTS、SM-Omics、Stereo-CITE-seq、MISAR-seq 等；
+第二类是原位成像型，包括基于 ISS 或多重 FISH 的平台，如 Xenium、MERFISH/MERSCOPE、seqFISH、CosMx 等；
+第三类则是成像质谱型。
+
+不同类别的空间多组学技术能够为多组学分析提供全面的生物信息与空间信息。
+该技术整合的计算目标为，在保留组织几何结构与局部邻域关系的前提下，学习 biologically meaningful latent space ，
+并以此支持 spatial domain identification / clustering、marker discovery、cell–cell communication、pathway/GO 分析、微环境分层、疾病区域比较和调控网络推断等。
+ 可以看出，空间域划分是多数下游分析的前置步骤，空间聚类是测序分析的关键步骤,其核心目标是识别基因表达与组织结构具有空间关联性的区域,从而为每个捕获的细胞点或细胞精准分配空间域标签。
+因此，如何正确精准地进行空间多组学整合，并进行聚类下游任务分析，就成为了目前的核心任务。
+
+与之对应，面向组学整合的计算方法也持续发展，大致可以分为四种类别：单组学单细胞表征学习、非空间多组学整合、空间单组学整合，以及空间多组学整合。
+总体而言，图模型，尤其是利用邻接关系和局部拓扑的图神经网络，在空间相关任务中已经成为最常见的建模范式之一；
+而在非空间多组学整合中，则与深度生成模型、矩阵分解和概率建模等数学方法与机器学习方法共同构成主流技术路线。
+在早期的单组学单细胞分析中，许多方法已经开始借助图神经网络刻画细胞间关系。
+例如，scGNN 将细胞—细胞关系表示为图结构，并结合自编码器学习，用于聚类与插补；
+scGCN 利用图卷积网络实现跨组织、跨平台的数据知识迁移；scGAC 则通过图注意力自编码器学习特征表示。这些方法，为后续研究，奠定了以图建模细胞关系的技术基础，
+但缺点清晰。它们主要围绕组学本身信息，构建细胞图，并未显式建模组织空间结构，也并不支持多组学的整合分析，而更多是对单组学信息进行结构化表征、降噪和特征提取。
+
+为了使用不同信息进行联合分析，研究重心进一步转向非空间多组学整合，使用联合潜空间学习、显式跨组学约束和异质特征空间对齐等方法。
+***等人提出了totalVI，对 CITE-seq 的 RNA 与蛋白数据进行联合概率建模；基于此，***等人进一步提出了MultiVI，将方法推广到 RNA–ATAC或multimodal/single-modality 混等合数据中，
+使缺失模态的细胞也能被纳入统一表示。在非空间多组学整合中，GLUE是中最具代表性的框架之一，引入了 knowledge-based guidance graph，显式建模不同组学层之间的 regulatory interactions。
+尽管这些方法拥有跨组学对齐能力，但它们的建模对象仍是非空间细胞集合，不能充分解决 spatial domain identification。
+
+为弥补这一缺口，一些研究[cite]开始系统引入空间坐标、组织形态和跨切片关系。与非空间组学整合不同的是，******************，其中*****方法*********************************；这些方法充分利用了
+空间结构建模，但也存在明显的局限性，它们依赖单一组学，信息上限有限，难以利用多组学信息（ RNA + ADT 或 RNA + ATAC ）的互补性。
+
+为了进一步充分利用不同组学之间的数据与空间信息，实现更精准的空间组织分析，空间多组学整合方法开始被探索，并取得了显著进展。例如，
+***等人提出的SpatialGlue采用..............；而SpaMICS则在此基础上。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。；SpaBalance实现了动态权重，并提出了跨组学共享学习的方法，
+
+尽管空间多组学整合网络被不断提出，但目前，它们仍然存在一些局限性。首先，现有方法大多使用 fixed fusion，进行简单的加权和连接，缺少 spot-specific / instance-wise routing；
+跨模态整合仍然更接近静态/粗粒度融合，对模态互补、模态冲突与不平衡聚类稳定性处理得不够显式。
+多组学之间存在丰富的生物学信息表示，跨组学信号既有 consistent information，也有 complementary information，多数方法
+把多组学 latent 表示融合到同一 shared embedding中；这类简单的拼接或加权可能会混淆两类信息。
+
+
+
+我们的方法在三个重要方面不同于现有空间多组学方法。
+首先，不同于大多数先前方法采用的固定融合方案，我们通过模态感知的混合专家模块进行逐节点自适应跨组学融合，允许不同 spot 根据其共识与差异模式由不同专家机制整合。
+其次，我们不仅依赖一阶邻域图，还用 motif 增强图丰富了组学内拓扑建模，并将其与基于 Transformer 的全局上下文建模相结合。
+第三，在表征融合之外，我们显式引入稳定性感知的聚类优化，以减少死簇塌陷并提升训练鲁棒性。
+这些设计选择使我们的框架特别适合异质和不平衡的空间多组学数据。
+
+
+
 \textbf{怎么写：} [先讲技术演进，再讲 biological payoff；不要一上来堆方法名或网络结构。]
 
-\textbf{建议优先参考的上传 PDF：} [\textit{Kiessling和Kuppe - 2024 - Spatial multi-omics novel tools to study the complexity of cardiovascular diseases.pdf}]
 
 \subsection*{第 2 段：任务定义——为什么 spatial domain identification / clustering 是核心任务}
 \textbf{写什么：} [定义 spatial domain identification 是什么，并说明它是 marker analysis、GO/pathway 分析、cell--cell interaction 分析、microenvironment study 等后续任务的前置步骤。]
 
 \textbf{怎么写：} [从任务重要性写，不要过早进入你自己的模型。]
 
-\textbf{建议优先参考的上传 PDF：} [\textit{2024-NM-SpatialGlue.pdf}；\textit{Chen 等 - 2025 - SpaFusion A multi-level fusion model for clustering spatial multi-omics data.pdf}]
 
 \subsection*{第 3 段：为什么非空间多组学 integration 方法不够}
 \textbf{写什么：} [指出 Seurat WNN、totalVI、MultiVI、MOFA+ 等方法虽然能做多组学整合，但没有显式建模空间结构，或对模态组合有限制，因此与 spatial domain identification 的问题设定存在 problem mismatch。]
 
 \textbf{怎么写：} [这一段要写成 “problem mismatch”，不是贬低已有方法。]
 
-\textbf{建议优先参考的上传 PDF：} [\textit{2024-NM-SpatialGlue.pdf}；\textit{Tang 等 - 2026 - Modal-NexT Towards unified heterogeneous cellular data integration.pdf}]
 
 \subsection*{第 4 段：SpatialGlue 的贡献与局限}
 \textbf{写什么：} [先认可 SpatialGlue 的开创性：spatial graph + feature graph + within-modality attention + between-modality attention；再指出两个局限：其一，仍然主要依赖一阶邻域结构；其二，更偏局部图语义，长程全局上下文与高阶拓扑表达仍有限。]
 
 \textbf{怎么写：} [语气必须是“先认可其开创性，再指出你的切入点”。]
 
-\textbf{建议优先参考的上传 PDF：} [\textit{2024-NM-SpatialGlue.pdf}]
 
 \subsection*{第 5 段：SpaFusion 的贡献与局限}
 \textbf{写什么：} [讲 SpaFusion 如何把 3-node motif 高阶图、graph autoencoder 和 transformer 带入 spatial multi-omics clustering；再指出它虽然解决了“局部 vs 全局”问题，但跨模态整合仍更接近静态或粗粒度融合，对模态互补、模态冲突以及不平衡聚类稳定性处理得不够显式。]
