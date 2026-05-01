@@ -70,22 +70,48 @@ scGCN 利用图卷积网络实现跨组织、跨平台的数据知识迁移；sc
 使缺失模态的细胞也能被纳入统一表示。在非空间多组学整合中，GLUE是中最具代表性的框架之一，引入了 knowledge-based guidance graph，显式建模不同组学层之间的 regulatory interactions。
 尽管这些方法拥有跨组学对齐能力，但它们的建模对象仍是非空间细胞集合，不能充分解决 spatial domain identification。
 
-为弥补这一缺口，一些研究[cite]开始系统引入空间坐标、组织形态和跨切片关系。与非空间组学整合不同的是，******************，其中*****方法*********************************；这些方法充分利用了
-空间结构建模，但也存在明显的局限性，它们依赖单一组学，信息上限有限，难以利用多组学信息（ RNA + ADT 或 RNA + ATAC ）的互补性。
+为弥补这一缺口，一些研究[cite]开始系统引入空间坐标、组织形态和跨切片关系。与非空间组学整合不同的是，
+这类方法要求,不仅要保持组织边界的连续性，还要依据空间信息分析，恢复出真实组织结构，代表方法有SpaGCN、STAGATE、GraphST、STALinger等。
+这些方法提升了空间建模能力，但也存在明显的局限性，它们依赖单一组学，难以利用多组学信息（ RNA + ADT 或 RNA + ATAC ）的互补性。
 
-为了进一步充分利用不同组学之间的数据与空间信息，实现更精准的空间组织分析，空间多组学整合方法开始被探索，并取得了显著进展。例如，
-***等人提出的SpatialGlue采用..............；而SpaMICS则在此基础上。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。；SpaBalance实现了动态权重，并提出了跨组学共享学习的方法，
+随着同一组织切片上 transcriptome–proteome、transcriptome–epigenome 乃至三模态空间共测技术的发展，
+如何在保留空间组织结构的同时整合异质组学信号，已成为空间多组学分析中的核心问题。
+因此，空间多组学整合方法开始被探索，并取得了显著进展。
+***等人提出的SpatialGlue 是 早期代表性工作之一，
+它为每个模态分别构建 spatial graph 与 feature graph，
+并使用双层 attention 机制，先在模态内融合信息，再在模态间聚合不同组学表征。
+该网络展示了空间多组学整合相较于特征拼接，或非空间多组学整合的优势，推动了 spatially informed cross-omics integration 的发展。
+后续的SpaFusion、SpaMICS等方法，均基于SpatialGlue进行了改进，其本质仍然是使用graph表示拓扑，并通过各种操作进行模态融合，进而实现空间多组学整合。
 
-尽管空间多组学整合网络被不断提出，但目前，它们仍然存在一些局限性。首先，现有方法大多使用 fixed fusion，进行简单的加权和连接，缺少 spot-specific / instance-wise routing；
-跨模态整合仍然更接近静态/粗粒度融合，对模态互补、模态冲突与不平衡聚类稳定性处理得不够显式。
-多组学之间存在丰富的生物学信息表示，跨组学信号既有 consistent information，也有 complementary information，多数方法
-把多组学 latent 表示融合到同一 shared embedding中；这类简单的拼接或加权可能会混淆两类信息。
+在此基础上，后续研究进一步进行了扩展。
+SpatialGlue的局限在于，其仍然依赖一阶邻域结构，更偏局部图语义，长程全局上下文与高阶拓扑表达能力有限。
+随后的多种方法~\cite{}在此架构上进行了改进，并取得了长足进展。
+SWITCH 将问题扩展到 unpaired spatial multi-omics integration，通过 cycle-mapping 生成 pseudo-pairs；
+SpatialEx/SpatialEx+ 则进一步面向 serial-section / diagonal integration，利用 histology 作为 universal anchor 跨切片整合多组学；
+而最新的 SpatialCOC 强调从 spatial prior 中学习 omics-specific spatial distributions，并显式刻画模态间 nonlinear correlations。
 
+然而，现有方法仍存在若干尚未充分解决的问题。
+第一，现有方法的跨模态融合，
+通常依赖 feature concatenation、shared latent factors、attention-weighted aggregation 或连续空间校正，
+也缺乏面向不同 spot 的 node-wise routing 或 expert specialization 机制。
+因此，在组织异质性较强、不同模态贡献随空间位置显著变化的场景中，现有融合策略难以充分刻画模态间的互补性与差异性；
 
+第二，许多图模型仍以固定局部邻域或 pairwise neighborhood aggregation 作为主要空间先验，其表达能力受限于一阶或低阶拓扑关系，
+难以同时捕捉细粒度局部结构、高阶空间依赖与长程组织上下文。
+虽然已有方法开始引入多邻域、hypergraph 或 histology-derived global context，但高阶拓扑与跨组学动态融合无法很好耦合。
 
-我们的方法在三个重要方面不同于现有空间多组学方法。
-首先，不同于大多数先前方法采用的固定融合方案，我们通过模态感知的混合专家模块进行逐节点自适应跨组学融合，允许不同 spot 根据其共识与差异模式由不同专家机制整合。
-其次，我们不仅依赖一阶邻域图，还用 motif 增强图丰富了组学内拓扑建模，并将其与基于 Transformer 的全局上下文建模相结合。
+第三，深度空间多组学整合通常还伴随训练层面的不稳定性。
+不同组学模态在维度、噪声水平、稀疏性和生物信息量上存在显著差异，容易造成强模态主导、弱模态被抑制以及小簇结构塌陷。
+已有 shared/private disentanglement 或 imbalance-aware optimization 能在一定程度上缓解信息混合不清和训练贡献失衡的问题，
+但尚未充分实现面向每个节点的动态专家选择与稳定聚类协同优化。因此，一个更理想的空间多组学整合框架，
+应同时具备高阶空间结构建模能力、spot-specific 跨模态贡献估计能力以及 node-wise expert routing 能力，
+从而在模态贡献局部变化显著、组织结构高度异质的场景下，实现更稳健、更可解释的空间组织解析。
+
+为了实现上述目标，本文提出 SMEM，一种基于混合专家（MoE）动态路由的多模态融合与稳定深度聚类框架。
+我们的方法在三个重要方面不同于现有方法。具体来说，针对第一个问题，
+不同于大多数先前方法采用的固定融合方案，我们在信息融合阶段，借鉴了大语言模型（LLM）领域的混合专家架构，并且构建了四个专家模块，
+进行模态感知。在该框架下，网络进行逐节点自适应的跨组学融合，不同的 spot 根据其共识与差异模式，分别由不同专家机制整合。同时，为了增强模型表达力与稳定性，我们优化了MoE的输出。
+针对第二个问题，为了解决一阶邻域图的不足，SMEM使用了 motif 增强图，丰富了组学内拓扑建模，并将其与基于 Transformer 的全局上下文建模相结合。
 第三，在表征融合之外，我们显式引入稳定性感知的聚类优化，以减少死簇塌陷并提升训练鲁棒性。
 这些设计选择使我们的框架特别适合异质和不平衡的空间多组学数据。
 
