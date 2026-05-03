@@ -282,7 +282,7 @@ L_i^\ell=\frac{H_i}{w_l(i)}\cdot\frac{W_i}{w_l(i)}.
 在时间步 $t$ 时，生成的双向加权键值聚合结果$wkv_t$，用公式表示为
 \begin{equation}
 \begin{aligned}
-wkv_t &= \text{Bi-WKV}(K_s, V_s)_t \\
+wkv_t &= \text{Bi-WKV}(K_s, V_s)_t, \\
 &= \frac{\sum_{i=0, i \neq t}^{T-1} e^{-(|t-i|-1)/T \cdot w + k_i} v_i + e^{u+k_t} v_t}{\sum_{i=0, i \neq t}^{T-1} e^{-(|t-i|-1)/T \cdot w + k_i} + e^{u+k_t}}
 \end{aligned}
 \label{eq:bi-wkv}
