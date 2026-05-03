@@ -81,12 +81,10 @@ scGCN 利用图卷积网络实现跨组织、跨平台的数据知识迁移；sc
 它为每个模态分别构建 spatial graph 与 feature graph，
 并使用双层 attention 机制，先在模态内融合信息，再在模态间聚合不同组学表征。
 该网络展示了空间多组学整合相较于特征拼接，或非空间多组学整合的优势，推动了 spatially informed cross-omics integration 的发展。
+SpatialGlue的局限在于，其仍然依赖一阶邻域结构，更偏局部图语义，长程全局上下文与高阶拓扑表达能力有限。
 后续的SpaFusion、SpaMICS等方法，均基于SpatialGlue进行了改进，其本质仍然是使用graph表示拓扑，并通过各种操作进行模态融合，进而实现空间多组学整合。
 
-在此基础上，后续研究进一步进行了扩展。
-SpatialGlue的局限在于，其仍然依赖一阶邻域结构，更偏局部图语义，长程全局上下文与高阶拓扑表达能力有限。
-随后的多种方法~\cite{}在此架构上进行了改进，并取得了长足进展。
-SWITCH 将问题扩展到 unpaired spatial multi-omics integration，通过 cycle-mapping 生成 pseudo-pairs；
+在此基础上，后续研究针对不同的应用场景进行了扩展。SWITCH 将问题扩展到 unpaired spatial multi-omics integration，通过 cycle-mapping 生成 pseudo-pairs；
 SpatialEx/SpatialEx+ 则进一步面向 serial-section / diagonal integration，利用 histology 作为 universal anchor 跨切片整合多组学；
 而最新的 SpatialCOC 强调从 spatial prior 中学习 omics-specific spatial distributions，并显式刻画模态间 nonlinear correlations。
 
@@ -115,110 +113,77 @@ SpatialEx/SpatialEx+ 则进一步面向 serial-section / diagonal integration，
 第三，在表征融合之外，我们显式引入稳定性感知的聚类优化，以减少死簇塌陷并提升训练鲁棒性。
 这些设计选择使我们的框架特别适合异质和不平衡的空间多组学数据。
 
-
-
-\textbf{怎么写：} [先讲技术演进，再讲 biological payoff；不要一上来堆方法名或网络结构。]
-
-
-\subsection*{第 2 段：任务定义——为什么 spatial domain identification / clustering 是核心任务}
-\textbf{写什么：} [定义 spatial domain identification 是什么，并说明它是 marker analysis、GO/pathway 分析、cell--cell interaction 分析、microenvironment study 等后续任务的前置步骤。]
-
-\textbf{怎么写：} [从任务重要性写，不要过早进入你自己的模型。]
-
-
-\subsection*{第 3 段：为什么非空间多组学 integration 方法不够}
-\textbf{写什么：} [指出 Seurat WNN、totalVI、MultiVI、MOFA+ 等方法虽然能做多组学整合，但没有显式建模空间结构，或对模态组合有限制，因此与 spatial domain identification 的问题设定存在 problem mismatch。]
-
-\textbf{怎么写：} [这一段要写成 “problem mismatch”，不是贬低已有方法。]
-
-
-\subsection*{第 4 段：SpatialGlue 的贡献与局限}
-\textbf{写什么：} [先认可 SpatialGlue 的开创性：spatial graph + feature graph + within-modality attention + between-modality attention；再指出两个局限：其一，仍然主要依赖一阶邻域结构；其二，更偏局部图语义，长程全局上下文与高阶拓扑表达仍有限。]
-
-\textbf{怎么写：} [语气必须是“先认可其开创性，再指出你的切入点”。]
-
-
-\subsection*{第 5 段：SpaFusion 的贡献与局限}
-\textbf{写什么：} [讲 SpaFusion 如何把 3-node motif 高阶图、graph autoencoder 和 transformer 带入 spatial multi-omics clustering；再指出它虽然解决了“局部 vs 全局”问题，但跨模态整合仍更接近静态或粗粒度融合，对模态互补、模态冲突以及不平衡聚类稳定性处理得不够显式。]
-
-\textbf{怎么写：} [这一段是全文最关键的前置铺垫，因为你的代码本质上更接近“在 SpaFusion 主干上的增强版本”。]
-
-\textbf{建议优先参考的上传 PDF：} [\textit{Chen 等 - 2025 - SpaFusion A multi-level fusion model for clustering spatial multi-omics data.pdf}]
-
-\subsection*{第 6 段：SpaMICS 带来的问题意识——一致信息与互补信息}
-\textbf{写什么：} [指出跨组学信号同时包含 consistent information 与 complementary information；简单拼接或加权容易混淆这两类信息。]
-
-\textbf{怎么写：} [不要把你的方法写成 explicit subspace disentanglement；只能写成“这类工作提示我们需要更具表达力的跨组学交互建模机制”。]
-
-\textbf{建议优先参考的上传 PDF：} [\textit{Cai 等 - 2026 - Identifying spatial domains from spatial multi-omics data using consistent and specific deep subspac.pdf}]
-
-\subsection*{第 7 段：SpaBalance / balanced learning 带来的问题意识——为什么需要稳定优化}
-\textbf{写什么：} [讲 optimization imbalance、gradient conflict、dominant modality、dead cluster 等问题，再自然引出你代码里的 cluster-usage regularization、Q-mix 和 dead-cluster reinitialization。]
-
-\textbf{怎么写：} [不要声称你实现了 gradient conflict coordination；应当写成“本文通过 stability-aware clustering objectives 针对 optimization instability 与 cluster collapse”。]
-
-\textbf{建议优先参考的上传 PDF：} [\textit{Cui 等 - SpaBalance Balanced Learning for Efficient Spatial Multi-Omics Decoding.pdf}；\textit{Zhu 等 - 2025 - BMCST Balanced multi-view clustering for spatially resolved transcriptomics with Mamba-driven dynam.pdf}]
-
-\subsection*{第 8 段：你的贡献总结}
-\textbf{写法要求：} [建议直接列 4 点贡献，但要写得像顶刊论文中的 contributions，不要写成项目汇报。]
-
-\textbf{按此前建议对应的 4 点贡献框架：}
-\begin{enumerate}
-    \item [贡献 1：] [构建 motif 增强且经过生物学 refined 的图，以联合编码空间邻近性、表型相似性和高阶拓扑。]
-    \item [贡献 2：] [设计 shared-weight dual-graph GCN 与 transformer 分支耦合的局部--全局组学内编码器，并配以自适应残差注意融合。]
-    \item [贡献 3：] [引入 mixture-of-experts 跨组学融合模块，以动态路由互补与冲突的模态信号。]
-    \item [贡献 4：] [开发稳定性感知的深聚类策略，以缓解 cluster collapse，并提高不平衡空间域下的鲁棒性。]
-\end{enumerate}
-
-\section{相关工作（Related Works）}
-
-\noindent\textbf{本节整体写法：}本节不要写成“方法罗列”。建议按问题轴组织，从技术背景、双图整合、高阶图与局部--全局表示、consistent/specific 建模、balanced/robust optimization 五条线索展开，最后用一段总结 remaining gaps，把 Method 顺势引出来。
-
-\subsection{Spatial multi-omics technologies and computational objectives}
-\textbf{写什么：} [用 1 段交代 spatial multi-omics 数据的技术来源与核心计算目标：不是单纯 integration，而是在保留组织结构的前提下学习 biologically meaningful latent space。]
-
-\textbf{怎么写：} [技术背景只写到支撑计算问题即可，不要把这一节写成实验技术综述。]
-
-\textbf{建议优先参考的上传 PDF：} [\textit{Kiessling和Kuppe - 2024 - Spatial multi-omics novel tools to study the complexity of cardiovascular diseases.pdf}；\textit{Tang 等 - 2026 - Modal-NexT Towards unified heterogeneous cellular data integration.pdf}]
-
-\subsection{Spatially informed dual-graph integration}
-\textbf{写什么：} [重点写 SpatialGlue：spatial graph、feature graph、within-modality attention、between-modality attention。]
-
-\textbf{怎么写：} [先总结其贡献，再指出局限：更多依赖一阶邻域，且对跨模态互补/冲突的刻画仍偏弱。]
-
-\textbf{建议优先参考的上传 PDF：} [\textit{2024-NM-SpatialGlue.pdf}]
-
-\subsection{High-order graph and local-global representation learning}
-\textbf{写什么：} [重点写 SpaFusion：3-node motif 高阶图、graph autoencoder 提取局部结构、transformer 提取全局上下文、多层级融合与 consensus clustering。]
-
-\textbf{怎么写：} [要明确告诉审稿人：你的方法是沿着这条路线继续发展，而不是凭空出现。]
-
-\textbf{建议优先参考的上传 PDF：} [\textit{Chen 等 - 2025 - SpaFusion A multi-level fusion model for clustering spatial multi-omics data.pdf}]
-
-\subsection{Consistent-specific modeling across omics}
-\textbf{写什么：} [重点写 SpaMICS 的 omics-shared / omic-specific self-expression、low-rank constraint、discriminative constraint。]
-
-\textbf{怎么写：} [这一节的作用是告诉读者：“consistent + complementary”已经是被接受的问题表述；最后一句要接回你自己的 dynamic expert routing 视角。]
-
-\textbf{建议优先参考的上传 PDF：} [\textit{Cai 等 - 2026 - Identifying spatial domains from spatial multi-omics data using consistent and specific deep subspac.pdf}]
-
-\subsection{Balanced and robust optimization for multi-view / multi-omics learning}
-\textbf{写什么：} [写 SpaBalance 的 balanced learning、gradient conflict、shared/private learning；必要时补充 BMCST 的 multi-view imbalance / dominant-view 问题意识。]
-
-\textbf{怎么写：} [要区分 conceptual relevance 与 direct implementation：你是借用了问题意识，而不是复现了它们的具体优化器。]
-
-\textbf{建议优先参考的上传 PDF：} [\textit{Cui 等 - SpaBalance Balanced Learning for Efficient Spatial Multi-Omics Decoding.pdf}；\textit{Zhu 等 - 2025 - BMCST Balanced multi-view clustering for spatially resolved transcriptomics with Mamba-driven dynam.pdf}]
-
-\subsection{Summary of remaining gaps}
-\textbf{这一段建议直接概括为 4 个 gap：}
+总的来说，本研究的贡献有：
 \begin{itemize}
-    \item [Gap 1：] [缺少同时覆盖一阶、高阶和长程依赖的表征机制。]
-    \item [Gap 2：] [缺少能够处理互补与冲突信号的动态跨模态路由机制。]
-    \item [Gap 3：] [缺少面向不平衡空间域的稳定聚类策略。]
-    \item [Gap 4：] [缺少把 graph construction、representation learning、cross-omics fusion 与 clustering stabilization 一体化的框架。]
+    \item 我们提出了SMEM，一种高效空间多组学整合信息框架，创新性地将MoE动态路由机制引入到空间多组学整合中，实现精准的跨模态信息融合。
+    \item 我们设计了一个局部—全局编码器，通过构建高阶图，接收不同的组学信息，将共享权重的双图 GCN 与 Transformer 分支相结合，并通过自适应残差注意力机制进行融合。
+    \item 我们开发了一种 稳定性感知的深度聚类策略，以缓解簇塌陷问题，并提升模型在空间域不均衡条件下的鲁棒性。
+    \item 为验证方法的有效性，我们在多个数据集上对方法进行了测试。实验结果表明，SMEM的性能显著优于所有最先进方法，并表现出更强的鲁棒性和生物分析价值。
 \end{itemize}
 
-\section{方法（Method）}
+
+\section{Related Works}
+
+\subsection{Graph-based spatial omics and spatial multi-omics integration}
+
+基于图的建模方法，已成为空间组学分析中的主流方法。图能够自然编码组织拓扑结构，
+将空间点或细胞根据空间邻接关系、分子相似性、组织学背景或它们的组合进行连接。
+因此，早期的空间转录组方法均使用了图进行建模，如 SpaGCN、STAGATE、SEDR 和 GraphST。
+结果表明，图卷积、图注意力以及图自编码方法能够有效传播局部组织信息，
+提高空间域识别能力。尽管这些方法针对单组学开发，但它们确立了图学习作为建模方法的先河。
+
+在此基础上，大多数空间多组学整合方法，同样依赖图来建立空间拓扑。经典方法SpatialGlue 
+通过图神经网络整合空间与多组学，并在此基础上通过双重注意力机制实现跨组学聚合；
+COSMOS 使用图卷积通道对配对模态进行编码，并通过对比学习将其整合为统一表示；
+SpaMI 和 soFusion 同样采用基于图的编码器，学习各组学特征，随后执行跨模态融合，
+SMART 则通过度量学习进一步优化图聚合。
+近期，SpaMosaic 同样利用图神经网络构建统一的潜在表示空间。
+总体而言，这些研究表明，图构建已成为空间多组学整合的主要策略之一。
+
+一些最新研究进一步指出\cite{}，在图学习中，仅依赖成对关系，或一阶图，不足以刻画复杂的关系拓扑\cite{}。
+因此出现了高阶图或者超图。在其中，代表方法SpaFusion，将一阶邻接关系与高阶结构相结合，构建统一的高阶图，用于空间组学聚类；此外，
+基于超图（如 HAST 和 HyperSTAR）的方法，从不同的视角中聚合超边，来建模高阶关系；而 GraphTucker 则从张量角度探索了多维高阶结构。
+
+然而，仅仅依赖于图或高阶图的方法，无法有效处理空间域内模态之间的复杂关系。
+跨组学融合通常通过拼接、注意力加权、子空间分解或其他全局共享的聚合函数实现，
+然而在复杂组织中，这一假设往往过于理想化，因为不同解剖区域、疾病微环境以及过渡边界中的模态可靠性和跨组学互补性可能存在显著差异。
+
+\subsection{Modality imbalance and stability in spatial domain discovery}
+
+尽管空间多组学整合技术发展迅速，但是多模态融合带来了一个挑战：
+不同组学层往往具有显著不同的特征维度、信噪比、稀疏程度以及生物学信息量，若所有模态在同一优化目标下联合训练，会导致latent space不够精准。
+近期诸多空间多组学研究已逐渐关注该问题。SMART指出，空间坐标的引入进一步增加了统一表征学习难度，
+为了缓解该问题，SpaBalance 使用了梯度协调和自适应特征分解，实现组学间贡献的动态平衡。
+
+另一个相关挑战在于空间域本身的稳定性。
+空间区域划分多为无监督任务，易受测序噪声、图构建方式、以及复杂组织形态的干扰。为提升模型鲁棒性，现有主流方法普遍采用共识聚类的策略。例如，
+SpatialCVGAE 通过融合多组隐表征与共识聚类，缓解数据噪声带来的不稳定性；
+EnSDD 对多个基础区域检测模型进行动态加权；Space 则通过一致性感知的共识学习，调和不同算法的输出差异。
+
+然而，现有方法大多将模态平衡与聚类稳定性视为两个问题。
+前者主要关注全局层面的跨组学优化，后者则更多依赖后验的共识或集成聚合，
+并未在表征学习阶段，对聚类分配坍缩问题施加约束。
+因此，如何在模态不均衡条件下，同时学习稳定的空间域表示，这一联合问题仍缺乏充分研究。
+
+
+\subsection{Mixture-of-experts for adaptive cross-modal fusion}
+混合专家模型（mixture-of-experts, MoE）为自适应信息融合提供了一种新的机制：
+它通过一组专家网络与一个可学习的门控函数相结合，使得模型能够动态选择不同的专家组合。
+在机器学习领域，诸如 MMoE 的变体已经被广泛应用，成为了多模态模型（MLLM）的关键技术。
+近年来，scMM、FuseMoE 和 Spatial Mixture-of-Experts 等工作进一步表明，
+当空间结构存在差异时，专家动态分配机制能够有效提升模型性能。因此，研究表明\cite{GASTON-Mix 和GROVER }，
+MoE技术同样能被用于组学分析任务。
+
+与之相对，当前绝大多数空间多组学整合方法仍依赖静态、架构固定的融合机制。
+现有融合方式主要分为三类：拼接融合、注意力引导融合与空间分解融合。
+代表性方法包括 SpatialGlue、SpaMI、SpaMICS、MultiGATE、SWITCH 等，
+通过双向注意力、对比学习、子空间拆解等不同方法，但总体上仍依赖共享或固定的融合函数，而非基于空间位置的专家路由。
+在复杂组织中，跨组学互补性、生物学相关性往往会随着解剖区域变化，因此静态融合可能受到限制。
+由此，将 MoE 引入空间多组学整合，实现自适应的跨模态融合，是一种有效的策略。
+
+
+
+\section{Methods}
 
 \noindent\textbf{整篇论文的一句话定位：} [本文应被写成一个面向复杂组织拓扑、跨模态互补/冲突信息以及不平衡空间域稳定优化的一体化框架。]
 
