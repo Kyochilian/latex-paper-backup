@@ -346,7 +346,29 @@ g\in\{s,h\}
 \end{equation}
 其中 $\omega_x$ 控制特征重构项的权重。
 
-在使用全局分支和局部分枝得到输出后，SMEM将两个输出进行融合与残差连接（如图\ref{fig:global_local}），送入下面的Modality-aware MoE模块中。
+总体来说，三个分支的输出为${Z}_{r}^{(v)}$,${Z}_{h}^{(v)}$和${Z}_{t}^{(v)}$。
+三类表示通过 softmax-normalized branch weights 进行组学内融合，并通过 global embedding attention 进一步扩大 receptive field，如式\ref{combined}：
+\begin{equation}
+    \label{combined}
+    \begin{aligned}
+        \mathbf{U}^{(v)}=
+\sum_{b\in\{r,h,t\}}\boldsymbol{\alpha}_{b}^{(v)}\odot\mathbf{Z}_{b}^{(v)},\\
+[\boldsymbol{\alpha}_{r}^{(v)},\boldsymbol{\alpha}_{h}^{(v)},\boldsymbol{\alpha}_{t}^{(v)}]
+=\operatorname{softmax}_{b}([\boldsymbol{\Omega}_{r}^{(v)},\boldsymbol{\Omega}_{h}^{(v)},\boldsymbol{\Omega}_{t}^{(v)}])
+    \end{aligned}
+\end{equation}
+在使用全局分支和局部分枝得到输出后，SMEM将三个输出进行融合与残差连接（如图\ref{fig:global_local}），
+最终的输出为
+\begin{equation}
+\widetilde{\mathbf{Z}}^{(v)}
+=
+\mathbf{Z}_{\ell}^{(v)}
++
+\gamma^{(v)}
+\mathbf{R}^{(v)}
+\mathbf{Z}_{\ell}^{(v)}
+\end{equation}
+其中的 $\gamma^{(v)}$ 为可学习残差系数，送入下面的Modality-aware MoE模块中。
 
 \subsection{Modality-aware MoE模块}
 传统跨组学融合通常使用拼接、加权平均或全局共享的 fusion MLP。
@@ -373,14 +395,7 @@ g\in\{s,h\}
 \left|\widetilde{\mathbf{z}}_{i}^{(1)}-\widetilde{\mathbf{z}}_{i}^{(2)}\right|
 \right]
 \end{equation}
-可以看出，gate有四种输入，分别是$ \mathbf{z}_{i}^{(1)}$、$ \mathbf{z}_{i}^{(2)}$、 $ \mathbf{z}_{i}^{(1)} \odot \mathbf{z}_{i}^{(2)}$
-和$ \left|\ \mathbf{z}_{i}^{(1)} - \mathbf{z}_{i}^{(2)} \right| $。
-它们分别承担不同的作用。
-\begin{itemize}
-    \item 其中，$ \mathbf{z}_{i}^{(1)}$与$ \mathbf{z}_{i}^{(2)}$，表示第 $i$ 个 spot 的第$v$一个组学的 latent embedding
-    \item 第 $3$ 个输入，即 $ \mathbf{z}_{i}^{(1)} \odot \mathbf{z}_{i}^{(2)}$，表示第 $i$ 个 spot 的第一个组学的 latent embedding 的 hadamard product。
-    \item 第 $4$ 个输入，即 $ \left|\ \mathbf{z}_{i}^{(1)} - \mathbf{z}_{i}^{(2)} \right| $，表示第 $i$ 个 spot 的第一个组学的 latent embedding 的 hadamard product。
-\end{itemize}
+
 
 
 
