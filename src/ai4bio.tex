@@ -384,7 +384,8 @@ g\in\{s,h\}
 
 \textit{1. 路由与门控}
 
-对于第 \(i\) 个 spot，路由网络不仅使用不同组学的 latent embedding，还加入了 element-wise agreement 和 disagreement 信息，即式\ref{gate input}：
+在该阶段，跨组学融合不应只依赖两个 embedding 的简单拼接，还应显式建模它们在哪些维度相互支持、在哪些维度存在冲突。
+MA-MoE模块的输入如下：
 \begin{equation}
     \label{gate input}
 \mathbf{r}_i=
@@ -395,17 +396,141 @@ g\in\{s,h\}
 \left|\widetilde{\mathbf{z}}_{i}^{(1)}-\widetilde{\mathbf{z}}_{i}^{(2)}\right|
 \right]
 \end{equation}
+$\widetilde{\mathbf{z}}_{i}$ 表示第 $i$ 个 spot 在两个组学中的表示，$\Vert$ 表示向量拼接。
+我们设计为四种信息输入，分别代表两个组学各自的表示、跨组学一致性、以及跨组学差异。通过此输入特征，
+SMEM 将跨组学整合建模为 spot-wise routing problem。
+
+随后，输入被送入noisy softmax 专家路由，用以增强训练早期的专家探索，避免所有 spots 过早集中到某一个专家，造成 expert collapse。
+该路由是 spot-specific 的，每个 spot 都可以拥有不同的专家组合，使 SMEM 能够动态选择融合机制。专家路由被表示为
+\begin{equation}
+    \mathbf{g}_i=
+\operatorname{softmax}\left(
+\phi_g(\mathbf{r}_i)+\boldsymbol{\epsilon}_i
+\right),
+\boldsymbol{\epsilon}_i\sim\mathcal{N}\left(\mathbf{0},\lambda_n^2\operatorname{diag}(\boldsymbol{\sigma}_i^2)\right)
+\end{equation}
+其中，$\phi_g(\cdot)$ 表示 routing network，将输入 $\mathbf{r}_i$ 映射为不同专家的未归一化选择分数；
+$g_{ie}$ 表示第 $i$ 个 spot 选择第 $e$ 个专家的概率。
+
+\textit{2. 专家函数}
+
+路由后的特征进入至关重要的专家，它们是FeatureGatingExpert、HardmardExpert、VarianceExpert和DifferenceExpert，一共为四个专家。
+
+FeatureGatingExpert 对每个 spot、每个 latent dimension 计算跨组学 gate，输出只依赖同一个 spot 的两个组学表示，不进行跨节点聚合。
+以此，能够避免 cross-node attention 可能带来的 majority-domain pooling bias，从而更有利于保留小空间域和边界区域，如式
+\begin{equation}
+    \begin{aligned}
+    \mathbf{m}_i=\sigma\left(\phi_m\left(\widetilde{\mathbf{z}}_{i}^{(1)}\Vert\widetilde{\mathbf{z}}_{i}^{(2)}\right)\right),\\
+\mathbf{a}_i=
+\mathbf{m}_i\odot\widetilde{\mathbf{z}}_{i}^{(1)}+
+(1-\mathbf{m}_i)\odot\widetilde{\mathbf{z}}_{i}^{(2)},\\
+\mathbf{e}_{i}^{(0)}=\mathbf{a}_i+\phi_{ref}(\mathbf{a}_i)
+        \end{aligned}
+\end{equation}
+其中，$\phi_m(\cdot)$ 表示 feature-gating network，$\mathbf{m}_i\in(0,1)^d$ 是第 $i$ 个 spot 的逐维跨组学门控向量。
+
+$\mathbf{a}_i$是根据门控向量$\mathbf{m}_i$得到的，它表示，当某一维的 $m_{i\ell}$ 较大时，该维度更依赖第一个组学；当 $m_{i\ell}$ 较小时，该维度更依赖第二个组学。
+剩余三个专家统一表示为式\ref{3experts}：
+\begin{equation}
+    \label{3experts}
+    \begin{aligned}
+\mathbf{e}_{i}^{(1)}&=\phi_h\left(\widetilde{\mathbf{z}}_{i}^{(1)}\odot\widetilde{\mathbf{z}}_{i}^{(2)}\right),\\
+\mathbf{e}_{i}^{(2)}&=\eta\widetilde{\mathbf{z}}_{i}^{(1)}+(1-\eta)\widetilde{\mathbf{z}}_{i}^{(2)}+
+\phi_v\left(\eta\widetilde{\mathbf{z}}_{i}^{(1)}+(1-\eta)\widetilde{\mathbf{z}}_{i}^{(2)}\right),\\
+\mathbf{e}_{i}^{(3)}&=\phi_d\left(\frac{\widetilde{\mathbf{z}}_{i}^{(1)}+\widetilde{\mathbf{z}}_{i}^{(2)}}{2}\Vert
+\phi_{\Delta}\left(\left|\widetilde{\mathbf{z}}_{i}^{(1)}-\widetilde{\mathbf{z}}_{i}^{(2)}\right|\right)\right),
+\end{aligned}
+\end{equation}
+其中，$\mathbf{e}_{i}^{(1)}$ 是 HadamardExpert，关注两个组学在同一维度上的一致性；
+
+$\mathbf{e}_{i}^{(2)}$ 是 VarianceExpert，其中 $\eta$ 根据latent embedding 的全局方差，估计相对可靠性，
+提供一个稳定的 variance-weighted fusion path，用作稳定的 fallback 表示。表示为
+    $\mathbf{z}_{var,i}=\eta\widetilde{\mathbf{z}}_{i}^{(1)}+(1-\eta)\widetilde{\mathbf{z}}_{i}^{(2)}$
+其中，$\eta$ 表示两个组学的相对可靠性，根据全局方差计算。
+
+$\mathbf{e}_{i}^{(3)}$ 是 DifferenceExpert，它同时利用组学间的平均表示和绝对差异表示，用于建模跨组学差异。
+
+$\phi_h(\cdot)$、$\phi_v(\cdot)$、$\phi_d(\cdot)$ 和 $\phi_{\Delta}(\cdot)$ 均表示专家内部的可学习变换。
+这三个专家分别对应 agreement、reliability 和 disagreement 三类跨组学交互模式，与 FeatureGatingExpert 共同构成具有多种归纳偏置的专家集合。
+在全部计算完毕后，专家聚合为$\mathbf{z}_{moe,i}=\mathbf{W}_o\sum_{e=0}^{E-1}g_{ie}\mathbf{e}_{i}^{(e)}$，并与先前的
+$\mathbf{z}_{var,i}$进行残差融合。SMEM 并不完全依赖 MoE 输出，通过此种方法,避免 MoE routing 在训练初期不稳定时完全主导 integrated embedding。
+
+为了缓解 expert collapse，我们设计了 load-balancing loss，防止绝大多数 spots 被分配给同一个专家，导致其他专家无法充分训练。
+它是保证专家发生功能分化的重要机制。平均 soft routing probability可以表示为$f_e=\frac{1}{N}\sum_{i=1}^{N}g_{ie}$,
+第 $e$ 个专家被选为 dominant expert 的比例为$p_e=\frac{1}{N}\sum_{i=1}^{N}\mathbb{I}\left(e=\arg\max_j g_{ij}\right)$。
+MoE load-balancing loss如
+\begin{equation}
+\mathcal{L}_{bal}=E\sum_{e=0}^{E-1}f_ep_e
+\end{equation}
+所示。
+
+\textit{Results部分最好配合 expert usage heatmap、dominant expert spatial map 和 routing entropy map 展示该损失确实促使不同专家在不同空间区域发挥作用。}
+
+\subsection{重构学习与稳定聚类}
+
+预训练阶段使用图重构和特征重构学习基础表示，见式 
+{\small
+\begin{equation}
+    \mathcal{L}_{rec}=
+\sum_{v=1}^{2}\sum_{b\in\{r,h\}}\omega_{b}^{(v)}
+\left\|\widehat{\mathbf{A}}_{b}^{(v)}-\mathbf{A}_{b}^{(v)}\right\|_F^2
++
+\sum_{v=1}^{2}\omega_{x}^{(v)}
+\left\|\widehat{\mathbf{X}}^{(v)}-\mathbf{X}^{(v)}\right\|_F^2
+\end{equation}
+}
+该公式用于预训练阶段，通过约束模型,先学习稳定的组学内表示，再进入联合聚类优化。
+在聚类阶段，我们使用Student-t进行软聚类分配：
+\begin{equation}
+    q_{ik}^{(v)}=
+\frac{(1+\|\widetilde{\mathbf{z}}_{i}^{(v)}-\boldsymbol{\mu}_{k}\|_2^2)^{-1}}
+{\sum_{k'=1}^{K}(1+\|\widetilde{\mathbf{z}}_{i}^{(v)}-\boldsymbol{\mu}_{k'}\|_2^2)^{-1}}
+\end{equation}
+$q_{ik}^{(0)}$同理。
+
+在训练早期 ，integrated embedding 可能尚不稳定，如果直接让 fused assignment 完全主导聚类，容易导致错误聚类强化，或小 cluster 被吞并。
+为此，我们设计了q-mix warm-up ，以进行聚类稳定性优化，并逐步引入组学特征。首先，
+从 integrated branch 构造 DEC-style target distribution，然后通过 warm-up 系数 \(\alpha_t\) 逐步混入两个组学特异分配，
+如式\ref{q-mix}所示：
+\begin{equation}
+    \label{q-mix}
+    \begin{aligned}
+    p_{ik}=\frac{(q_{ik}^{(0)})^2/\sum_{i'}q_{i'k}^{(0)}}
+{\sum_{k'}(q_{ik'}^{(0)})^2/\sum_{i'}q_{i'k'}^{(0)}}\\
+\bar{q}_{ik}=(1-\alpha_t)q_{ik}^{(0)}+\frac{\alpha_t}{2}(q_{ik}^{(1)}+q_{ik}^{(2)})
+\end{aligned}
+\tag{22a}
+\end{equation}
+\begin{equation}
+\alpha_t=\alpha_q\min\left(1,\frac{t}{T_w}\right)
+\tag{22b}
+\end{equation}
+其中，$p_{ik}$ 是 DEC-style target distribution，用于增强高置信度分配,并减弱大 cluster 对优化过程的主导作用,防止小 cluster 被吞并，
+以此实现stability-aware deep clustering。
+q-mix warm-up 逐步引入单组学分配信息，使聚类目标从更保守的状态过渡到融合状态，从而降低 early-stage cluster collapse 的风险。
 
 
+Cluster-usage regularization 与总损失的定义如下：
+\begin{equation}
+    \mathcal{L}_{usage}=\frac{1}{K}\sum_{k=1}^{K}
+\left[\max\left(0,\pi_{min}-\bar{q}_{k}\right)\right]^2
+\end{equation}
+其中$\bar{q}_{k}=\frac{1}{N}\sum_{i=1}^{N}q_{ik}^{(0)}$,表示第 $k$ 个 cluster 在所有 spots 上的平均使用率，
+也就是该 cluster 的 expected assignment mass；$\pi_{min}=\frac{n_{min}}{N}$。
 
+因为真实组织结构中的空间域大小通常并不均衡，因此该损失只在 $\bar{q}_k<\pi_{min}$ 时被激活，即只惩罚使用率过低或接近 inactive 的 clusters，
+以此避免empty cluster、dead cluster 或 minority-domain collapse。
 
-
-
-
-
-
-
-
+综上所述，总的联合的训练目标为
+\begin{equation}
+    \begin{aligned}
+    \mathcal{L}=\mathcal{L}_{rec}
++\lambda_{kl}\operatorname{KL}(\mathbf{P}\|\bar{\mathbf{Q}})\\
++\lambda_{con}\mathcal{L}_{con}
++\lambda_{usage}\mathcal{L}_{usage}
++\lambda_{bal}\mathcal{L}_{bal}.
+\end{aligned}
+\end{equation}
 \vspace{0.5em}
 
 \end{document}
