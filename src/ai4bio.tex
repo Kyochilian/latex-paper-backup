@@ -4,6 +4,8 @@
 \usepackage[unicode]{hyperref}
 \hypersetup{hidelinks}
 \usepackage[UTF8]{ctex}
+\usepackage{booktabs}
+\usepackage{tabularx}
 \setlength{\parindent}{2em}
 
 \begin{document}
@@ -532,6 +534,52 @@ Cluster-usage regularization 与总损失的定义如下：
 +\lambda_{bal}\mathcal{L}_{bal}.
 \end{aligned}
 \end{equation}
+
+\section{Experiments}
+我们设计了一套全面的实验方案，从四个互补的角度评估 SMEM：聚类准确性、空间域保持能力、跨组学融合质量和优化稳定性。
+首先，我们在有标注的空间转录组–蛋白质组数据集上，与其他先进方法进行对比试验，
+其次，我们对空间域分配和低维嵌入进行可视化，以评估所学表示是否保持了组织结构。
+第三，我们进行消融实验，用以评估前文中所提方法的贡献。
+最后，通过标记特征，分析所识别空间域的生物学相关性。
+
+\subsection{Datasets}
+我们在配对的空间转录组–蛋白质组数据集（含匹配的空间坐标）上评估了 SMEM。
+主要基准数据集为,10x Genomics Visium 平台生成的人类淋巴结 D1 切片，包含 3359 个空间点、18,085 个基因、31 个 ADT 特征和 11 个标注的组织/细胞类型区域。
+为进一步评估泛化能力，我们还考虑了人类淋巴结 A1 切片，包含 3484 个空间点、18,085 个基因、31 个 ADT 和 10 个标注区域。
+对于有标注的数据集，手动标注仅用于评估，不用于表示学习;
+对于无标注数据集，我们使用了小鼠乳腺癌数据集，通过标记特征分析和下游生物学解释，来评估所识别簇的生物学合理性。
+具体的信息对比如表~\ref{tab:datasets}所示：
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Statistics of benchmark spatial multi-omics datasets.}
+\label{tab:datasets}
+\begin{tabularx}{\columnwidth}{l l c c c l X}
+\toprule
+Dataset  & Spots & Genes & ADTs & Labels & Clusters \\
+\midrule
+Human lymph node A1  & 3484 & 18,085 & 31 & Manual & 10 \\
+Human lymph node D1  & 3359 & 18,085 & 31 & Manual & 11 \\
+Mouse breast cancer  & 1978 & 32,286 & 32 & Unlabeled & - \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Data preprocessing}
+在处理Human lymph node A1 和 Human lymph node D1 数据集时，我们采用了如下的数据预处理。
+对于 RNA 模态，我们移除了在少于 10 个细胞中表达的基因，使用 Seurat v3 策略选取前 3000 个高变异基因。其中，计数矩阵按每个点的总计数 $10^4$ 归一化，进行 log 转换与标准化后投影至 100 维主成分空间；
+对于 ADT 模态，我们对每个点施加中心化对数比归一化，随后标准化并执行 PCA，主成分数设为 ADT 特征数减一，低维表示用于特征图构建和神经表示学习。
+
+在最初图构建方面，对于每个模态，SMEM 构建了两张互补图。
+对于空间图，基于物理点坐标，使用 $k=9$ 的 k 近邻策略构建；对于特征图，
+在模态特定的 PCA 空间中使用 $k=20$ 的 k 近邻图构建，两张图在输入图编码器前均经对称化和归一化处理。
+
+\subsection{评估指标}
+在评估 SMEM 的性能时，我们使用了以下指标：
+对于有标注的数据集，我们使用调整兰德指数（ARI）、归一化互信息（NMI）、聚类准确率（ACC）、调整互信息（AMI）、macro-F1 分数、V-measure 和 Fowlkes–Mallows 分数（FMS）评估聚类性能。
+
+
 \vspace{0.5em}
 
 \end{document}
