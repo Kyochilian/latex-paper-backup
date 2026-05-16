@@ -469,71 +469,168 @@ MoE load-balancing loss如
 
 \textit{Results部分最好配合 expert usage heatmap、dominant expert spatial map 和 routing entropy map 展示该损失确实促使不同专家在不同空间区域发挥作用。}
 
-\subsection{重构学习与稳定聚类}
+\subsection{稳定性感知聚类优化}
 
-预训练阶段使用图重构和特征重构学习基础表示，见式 
-{\small
+在重构预训练之后，为了进一步优化潜在空间，我们设计了稳定性感知深度聚类目标。
+
+在标准DEC聚类中，仅依赖融合表征，
+为了改善这一点，SMEM考虑了融合嵌入与两个特定模态的嵌入，同时优化了不平衡空间域的训练，防止发生聚类坍缩。
+
+设 $\mathbf{Z}^{(0)}=\mathbf{Z}\in\mathbb{R}^{N\times d}$ 表示由 MA-MoE 模块输出的融合表征。
+并设 $\mathbf{Z}^{(1)}=\widetilde{\mathbf{Z}}^{(1)}$ 与 $\mathbf{Z}^{(2)}=\widetilde{\mathbf{Z}}^{(2)}$ ，即两个模态的表征。
+我们通过 K-means 算法来初始化聚类中心 $\{\boldsymbol{\mu}_k\}_{k=1}^{K}$：
 \begin{equation}
-    \mathcal{L}_{rec}=
-\sum_{v=1}^{2}\sum_{b\in\{r,h\}}\omega_{b}^{(v)}
-\left\|\widehat{\mathbf{A}}_{b}^{(v)}-\mathbf{A}_{b}^{(v)}\right\|_F^2
-+
-\sum_{v=1}^{2}\omega_{x}^{(v)}
-\left\|\widehat{\mathbf{X}}^{(v)}-\mathbf{X}^{(v)}\right\|_F^2
+\eta=
+\frac{\mathrm{Var}(\widetilde{\mathbf{Z}}^{(1)})}
+{\mathrm{Var}(\widetilde{\mathbf{Z}}^{(1)})+
+ \mathrm{Var}(\widetilde{\mathbf{Z}}^{(2)})+\epsilon},
 \end{equation}
+其中$\mathbf{Z}_{\mathrm{var}}=\eta \widetilde{\mathbf{Z}}^{(1)}+(1-\eta)\widetilde{\mathbf{Z}}^{(2)}$。
+
+同时，对于每个分支 $b\in\{0,1,2\}$，SMEM使用学生 t 分布（Student's $t$-distribution）计算空间位点 $i$ 到聚类 $k$ 的软分配：
+\begin{equation}
+    q_{ik}^{(b)}
+=
+\frac{
+\left(1+\|\mathbf{z}_{i}^{(b)}-\boldsymbol{\mu}_{k}\|_2^2\right)^{-1}
+}{
+\sum_{k'=1}^{K}
+\left(1+\|\mathbf{z}_{i}^{(b)}-\boldsymbol{\mu}_{k'}\|_2^2\right)^{-1}
 }
-该公式用于预训练阶段，通过约束模型,先学习稳定的组学内表示，再进入联合聚类优化。
-在聚类阶段，我们使用Student-t进行软聚类分配：
-\begin{equation}
-    q_{ik}^{(v)}=
-\frac{(1+\|\widetilde{\mathbf{z}}_{i}^{(v)}-\boldsymbol{\mu}_{k}\|_2^2)^{-1}}
-{\sum_{k'=1}^{K}(1+\|\widetilde{\mathbf{z}}_{i}^{(v)}-\boldsymbol{\mu}_{k'}\|_2^2)^{-1}}
 \end{equation}
-$q_{ik}^{(0)}$同理。
+可以看到，$q_{ik}^{(0)}$ 由融合嵌入计算得出，而 $q_{ik}^{(1)}$ 和 $q_{ik}^{(2)}$ 则使用相同的聚类中心，由两个特定模态嵌入计算得出。
 
-在训练早期 ，integrated embedding 可能尚不稳定，如果直接让 fused assignment 完全主导聚类，容易导致错误聚类强化，或小 cluster 被吞并。
-为此，我们设计了q-mix warm-up ，以进行聚类稳定性优化，并逐步引入组学特征。首先，
-从 integrated branch 构造 DEC-style target distribution，然后通过 warm-up 系数 \(\alpha_t\) 逐步混入两个组学特异分配，
-如式\ref{q-mix}所示：
+\textit{1. Target distribution}
+
+以DEC的聚类方法为基础，我们基于融合分配 $\mathbf{Q}^{(0)}$ 构建一个锐化目标分布：
 \begin{equation}
-    \label{q-mix}
-    \begin{aligned}
-    p_{ik}=\frac{(q_{ik}^{(0)})^2/\sum_{i'}q_{i'k}^{(0)}}
-{\sum_{k'}(q_{ik'}^{(0)})^2/\sum_{i'}q_{i'k'}^{(0)}}\\
-\bar{q}_{ik}=(1-\alpha_t)q_{ik}^{(0)}+\frac{\alpha_t}{2}(q_{ik}^{(1)}+q_{ik}^{(2)})
-\end{aligned}
-\tag{22a}
+    p_{ik}
+=
+\frac{
+(q_{ik}^{(0)})^2 / f_k
+}{
+\sum_{k'=1}^{K}
+(q_{ik'}^{(0)})^2 / f_{k'}
+}
 \end{equation}
+其中$f_k=\sum_{i=1}^{N}q_{ik}^{(0)}$为第 $k$ 个簇的软分配频率。目标分布通过对软分配概率取平方，使得模型偏向高置信度的分配；
+同时对聚类频率进行归一化，抑制簇规模的差异对训练目标的影响，从而削弱大型聚类的主导地位，促进各簇间更为均衡的表示学习。
+
+\textit{2. Q-mix warm-up}
+
+在融合潜在空间尚未组织良好的情况下，如果强制要求融合分配与特定模态分配之间保持一致，则会导致聚类稳定性大大下降。
+因此，SMEM 引入了一种渐进式的 Q-mix 预热策略，其公式表示为
 \begin{equation}
-\alpha_t=\alpha_q\min\left(1,\frac{t}{T_w}\right)
-\tag{22b}
+    \bar{q}_{ik}^{(t)}
+=
+(1-\alpha_t)q_{ik}^{(0)}
++
+\frac{\alpha_t}{2}
+\left(q_{ik}^{(1)}+q_{ik}^{(2)}\right),
 \end{equation}
-其中，$p_{ik}$ 是 DEC-style target distribution，用于增强高置信度分配,并减弱大 cluster 对优化过程的主导作用,防止小 cluster 被吞并，
-以此实现stability-aware deep clustering。
-q-mix warm-up 逐步引入单组学分配信息，使聚类目标从更保守的状态过渡到融合状态，从而降低 early-stage cluster collapse 的风险。
-
-
-Cluster-usage regularization 与总损失的定义如下：
+其中
 \begin{equation}
-    \mathcal{L}_{usage}=\frac{1}{K}\sum_{k=1}^{K}
-\left[\max\left(0,\pi_{min}-\bar{q}_{k}\right)\right]^2
+\alpha_t
+=
+\alpha_q
+\min\left(1,\frac{t}{T_w}\right).
 \end{equation}
-其中$\bar{q}_{k}=\frac{1}{N}\sum_{i=1}^{N}q_{ik}^{(0)}$,表示第 $k$ 个 cluster 在所有 spots 上的平均使用率，
-也就是该 cluster 的 expected assignment mass；$\pi_{min}=\frac{n_{min}}{N}$。
+此处，$\alpha_q$ 为最大跨分支的混合权重，$T_w$ 为预热持续时间。
+在早期阶段，聚类损失主要依赖于融合分支。随着训练的进行，特定模态的分配被逐渐引入，以提供预热的效果，逐步抑制少数分布域。
 
-因为真实组织结构中的空间域大小通常并不均衡，因此该损失只在 $\bar{q}_k<\pi_{min}$ 时被激活，即只惩罚使用率过低或接近 inactive 的 clusters，
-以此避免empty cluster、dead cluster 或 minority-domain collapse。
-
-综上所述，总的联合的训练目标为
+在这里，聚类损失定义为：
 \begin{equation}
-    \begin{aligned}
-    \mathcal{L}=\mathcal{L}_{rec}
-+\lambda_{kl}\operatorname{KL}(\mathbf{P}\|\bar{\mathbf{Q}})\\
-+\lambda_{con}\mathcal{L}_{con}
-+\lambda_{usage}\mathcal{L}_{usage}
-+\lambda_{bal}\mathcal{L}_{bal}.
-\end{aligned}
+\mathcal{L}_{\mathrm{qmix}}
+=
+\frac{1}{N}
+\sum_{i=1}^{N}\sum_{k=1}^{K}
+p_{ik}
+\log
+\frac{p_{ik}}{\bar{q}_{ik}^{(t)}+\epsilon}
 \end{equation}
+
+\textit{3. Cluster-unit regularization}
+
+组织切片中的空间域通常高度不平衡，标准聚类目标可能将可忽略的概率质量分配给小簇，从而产生不活跃或几乎为空的聚类。
+为了缓解这一问题，我们引入了聚类单元使用率正则化项。定义一个聚类 $k$ ，其预期使用率定义为：
+\begin{equation}
+    \bar{u}_k
+=
+\frac{1}{N}
+\sum_{i=1}^{N}
+q_{ik}^{(0)}
+\end{equation}
+给定最小聚类大小阈值 $n_{\min}$，我们定义 $\pi_{\min}=n_{\min}/N$，并且仅对预期分配质量低于此阈值的聚类进行惩罚：
+\begin{equation}
+    \mathcal{L}_{\mathrm{cur}}
+=
+\frac{1}{K}
+\sum_{k=1}^{K}
+\frac{
+\max(0,\pi_{\min}-\bar{u}_k)
+}{
+\pi_{\min}+\epsilon
+}
+\end{equation}
+与均匀性正则化不同，该损失公式并不强制所有聚类具有相同的大小。
+相反，它仅在某个聚类未被充分使用时才会被激活，这使其非常适用于大小区域自然共存的不平衡空间域。
+
+\textit{4. Dead-cluster reinitialization}
+
+为了应对可能出现的聚类塌缩的问题，SMEM 还应用了死亡聚类重初始化策略。受到K-means++ 的重播种（reseeding）机制启发，
+在训练轮数 $T_{\mathrm{end}}$ 之前，每隔 $T_r$ 轮，我们计算硬分配计数：
+\begin{equation}
+    n_k^{(t)}
+=
+\sum_{i=1}^{N}
+\mathbb{I}
+\left[
+k=\arg\max_{j}q_{ij}^{(0)}
+\right]
+\end{equation}
+其中，如果某个聚类的硬分配计数小于 $n_{\min}$，则将其视为死亡聚类$\mathcal{D}_t
+=
+\{k\mid n_k^{(t)}<n_{\min}\}.$
+
+对于最远点策略（farthest-point strategy），我们首先定义存活聚类集合 $\mathcal{A}_t=\{1,\ldots,K\}\setminus\mathcal{D}_t$。根据每个空间位点到最近存活中心的距离为其打分：
+\begin{equation}
+s_i
+=
+\min_{a\in\mathcal{A}_t}
+\|\mathbf{z}_{i}^{(0)}-\boldsymbol{\mu}_{a}\|_2^2
+\end{equation}
+选择得分最大的空间位点作为新的种子点，并将死亡中心更新为$\boldsymbol{\mu}_{d_j}
+\leftarrow
+\mathbf{z}_{i_j}^{(0)},
+\quad
+d_j\in\mathcal{D}_t.$
+
+通过此机制，促使不活跃的聚类中心远离存活聚类，从而防止聚类坍缩。
+在实际训练中，重新初始化的聚类中心的优化器动量（optimizer moments）也会被重置，以稳定后续的更新。
+
+最终的训练目标为：$$\mathcal{L}
+=
+\mathcal{L}_{\mathrm{rec}}
++
+\lambda_{\mathrm{kl}}\mathcal{L}_{\mathrm{qmix}}
++
+\lambda_{\mathrm{con}}\mathcal{L}_{\mathrm{con}}
++
+\lambda_{\mathrm{cur}}\mathcal{L}_{\mathrm{cur}}
++
+\lambda_{\mathrm{bal}}\mathcal{L}_{\mathrm{bal}},$$其中 $\mathcal{L}_{\mathrm{rec}}$ 为图与特征重构损失，
+$\mathcal{L}_{\mathrm{con}}$ 强制融合嵌入与特定模态嵌入之间保持着一致：$$\mathcal{L}_{\mathrm{con}}
+=
+\frac{1}{N}
+\sum_{i=1}^{N}
+\left(
+\|\mathbf{z}_{i}^{(0)}-\mathbf{z}_{i}^{(1)}\|_2^2
++
+\|\mathbf{z}_{i}^{(0)}-\mathbf{z}_{i}^{(2)}\|_2^2
+\right),$$其中 $\mathcal{L}_{\mathrm{bal}}$ 为用于避免专家坍缩（expert collapse）的 MoE 损失。
+死亡聚类重初始化是一种优化阶段的中心管理策略，用于定期挽救不活跃的聚类。
+
+
 
 \section{Experiments}
 我们设计了一套全面的实验方案，从四个互补的角度评估 SMEM：聚类准确性、空间域保持能力、跨组学融合质量和优化稳定性。
