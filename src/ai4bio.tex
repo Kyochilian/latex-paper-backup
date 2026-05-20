@@ -1,6 +1,7 @@
 \documentclass[journal]{IEEEtran}
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
 \usepackage[unicode]{hyperref}
 \hypersetup{hidelinks}
 \usepackage[UTF8]{ctex}
@@ -119,6 +120,12 @@ SpatialEx/SpatialEx+ 则进一步面向 serial-section / diagonal integration，
     \item 为验证方法的有效性，我们在多个数据集上对方法进行了测试。实验结果表明，SMEM的性能显著优于所有最先进方法，并表现出更强的鲁棒性和生物分析价值。
 \end{itemize}
 
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[width=\textwidth]{../pic/SMEM_architecture.pdf}
+    \caption{SMEM的总体架构图。Method D 稳定性展示之聚类优化部分，并未在网络架构图中显著提及。}
+    \label{fig:smem_architecture}
+\end{figure*}
 
 \section{Related Works}
 
@@ -184,6 +191,9 @@ MoE技术同样能被用于组学分析任务。
 \section{Methods}
 
 在本章，我们将详细介绍SMEM的架构。SMEM主要包含四个组件（见图~\ref{fig:smem_architecture}），分别是输入与图构建、局部 - 全局组学内编码、modality-aware mixture-of-experts, MA-MoE跨模态路由和聚类稳定模块。
+
+
+
 总体网络来看，SMEM通过以逐节点混合专家路由替代全局共享的跨组学融合策略，并增强 DEC 聚类算法对小众域的抗坍缩能力，有效提升空间多组学的域识别效果。
 接下来，将对各个模块进行详细介绍。
 
@@ -640,9 +650,9 @@ $\mathcal{L}_{\mathrm{con}}$ 强制融合嵌入与特定模态嵌入之间保持
 最后，通过标记特征，分析所识别空间域的生物学相关性。
 
 \subsection{Datasets}
-我们在配对的空间转录组–蛋白质组数据集（含匹配的空间坐标）上评估了 SMEM。
-主要基准数据集为,10x Genomics Visium 平台生成的人类淋巴结 D1 切片，包含 3359 个空间点、18,085 个基因、31 个 ADT 特征和 11 个标注的组织/细胞类型区域。
-为进一步评估泛化能力，我们还考虑了人类淋巴结 A1 切片，包含 3484 个空间点、18,085 个基因、31 个 ADT 和 10 个标注区域。
+我我们在三个公开空间转录组–蛋白质组数据集上评估了 SMEM 的性能，包括两个有人工标注的人类淋巴结切片 A1 和 D1，以及一个无人工标注的小鼠乳腺癌切片。
+主要基准数据集为人类淋巴结 D1 切片，包含 3359 个空间点、18,085 个基因、31 个 ADT 特征和 11 个标注的组织/细胞类型区域；
+为进一步评估泛化能力，我们还考虑了人类淋巴结 A1 切片和小鼠乳腺癌。
 对于有标注的数据集，手动标注仅用于评估，不用于表示学习;
 对于无标注数据集，我们使用了小鼠乳腺癌数据集，通过标记特征分析和下游生物学解释，来评估所识别簇的生物学合理性。
 具体的信息对比如表~\ref{tab:datasets}所示：
@@ -663,19 +673,156 @@ Mouse breast cancer  & 1978 & 32,286 & 32 & Unlabeled & - \\
 \end{tabularx}
 \end{table}
 
-\subsection{Data preprocessing}
-在处理Human lymph node A1 和 Human lymph node D1 数据集时，我们采用了如下的数据预处理。
-对于 RNA 模态，我们移除了在少于 10 个细胞中表达的基因，使用 Seurat v3 策略选取前 3000 个高变异基因。其中，计数矩阵按每个点的总计数 $10^4$ 归一化，进行 log 转换与标准化后投影至 100 维主成分空间；
-对于 ADT 模态，我们对每个点施加中心化对数比归一化，随后标准化并执行 PCA，主成分数设为 ADT 特征数减一，低维表示用于特征图构建和神经表示学习。
 
-在最初图构建方面，对于每个模态，SMEM 构建了两张互补图。
+\subsection{Compared methods}
+为全面评估 SMEM 的有效性，我们将其与八种代表性方法进行比较，其中包括经典的组学整合方法SpatialGlue、SpaFusion和SpaMICS。
+它们同时利用空间坐标和多组学测量，所有方法均使用原论文或官方教程推荐参数运行，并在相同数据预处理和聚类数设置下进行比较。
+其中一些方法的简要介绍如下：
+
+
+
+\subsection{Data preprocessing}
+在处理Human lymph node A1 和 Human lymph node D1 数据集时，我们延续并采用了如下的数据预处理：
+对于 RNA 模态，我们移除了在少于 10 个细胞中表达的基因，使用 Seurat v3 策略选取前 3000 个高变异基因。其中，计数矩阵按每个点的总计数 $10^4$ 归一化，进行 log 转换与标准化后投影至 100 维主成分空间；
+对于 ADT 模态，我们对每个点施加中心化对数比归一化，随后标准化并执行 PCA降维。
+
+在最初图的构建方面，对于每个模态，SMEM 构建了两张互补图。
 对于空间图，基于物理点坐标，使用 $k=9$ 的 k 近邻策略构建；对于特征图，
 在模态特定的 PCA 空间中使用 $k=20$ 的 k 近邻图构建，两张图在输入图编码器前均经对称化和归一化处理。
 
 \subsection{评估指标}
 在评估 SMEM 的性能时，我们使用了以下指标：
-对于有标注的数据集，我们使用调整兰德指数（ARI）、归一化互信息（NMI）、聚类准确率（ACC）、调整互信息（AMI）、macro-F1 分数、V-measure 和 Fowlkes–Mallows 分数（FMS）评估聚类性能。
+对于有标注数据集，我们使用 Adjusted Rand Index (ARI)、Normalized Mutual Information (NMI)、Adjusted Mutual Information (AMI)、聚类准确率 (ACC)、macro-F1、V-measure 和 Fowlkes–Mallows score (FMS) 评估聚类性能。
+其中，ARI是展现方法综合整合能力的最具代表性指标。
 
+\paragraph{聚类准确率}
+ACC 是评估聚类结果与真实标签是否符合的最直接方法。
+由于聚类标签具有置换不变性（permutation-invariant），我们首先利用匈牙利算法（Hungarian algorithm）将预测标签与真实标签进行匹配。ACC 的定义如下：
+\begin{equation}
+\mathrm{ACC}
+=
+\frac{1}{N}
+\sum_{i=1}^{N}
+\mathbb{I}
+\left[
+y_i=\pi^{*}(\hat{y}_i)
+\right],
+\end{equation}
+其中 $\pi^{*}$ 表示最优标签置换，$N$ 为样本总数。
+
+\paragraph{宏 F1 (Macro-F1)}
+对于每个类别 $k$，精确率（Precision）和召回率（Recall）的定义如下：
+\begin{equation}
+\mathrm{Precision}_k
+=
+\frac{\mathrm{TP}_k}
+{\mathrm{TP}_k+\mathrm{FP}_k},
+\mathrm{Recall}_k
+=
+\frac{\mathrm{TP}_k}
+{\mathrm{TP}_k+\mathrm{FN}_k}。
+\end{equation}
+类级别 F1 分数（class-wise F1 score）为：
+\begin{equation}
+\mathrm{F1}_k
+=
+\frac{
+2\cdot \mathrm{Precision}_k\cdot \mathrm{Recall}_k
+}{
+\mathrm{Precision}_k+\mathrm{Recall}_k
+},
+\end{equation}
+宏 F1 值是通过对所有类别求平均值计算得到的：
+\begin{equation}
+\mathrm{F1}_{\mathrm{macro}}
+=
+\frac{1}{K}
+\sum_{k=1}^{K}
+\mathrm{F1}_k。
+\end{equation}
+
+\paragraph{调整兰德系数。}
+令 $n_{ij}$ 表示真实类别 $i$ 与预测聚类 $j$ 共有样本的数量，并令 $a_i=\sum_j n_{ij}$ 和 $b_j=\sum_i n_{ij}$。ARI 的定义如下：
+\begin{equation}
+\mathrm{ARI}
+=
+\frac{
+\sum_{ij}\binom{n_{ij}}{2}
+-
+\frac{
+\sum_i\binom{a_i}{2}
+\sum_j\binom{b_j}{2}
+}{
+\binom{N}{2}
+}
+}{
+\frac{1}{2}
+\left[
+\sum_i\binom{a_i}{2}
++
+\sum_j\binom{b_j}{2}
+\right]
+-
+\frac{
+\sum_i\binom{a_i}{2}
+\sum_j\binom{b_j}{2}
+}{
+\binom{N}{2}
+}
+}。
+\end{equation}
+
+\paragraph{归一化互信息与调整互信息。}
+令 $I(\mathbf{y};\hat{\mathbf{y}})$ 表示真实标签与预测聚类之间的互信息，并令 $H(\cdot)$ 表示熵。NMI 的计算公式为：
+\begin{equation}
+\mathrm{NMI}
+=
+\frac{
+2I(\mathbf{y};\hat{\mathbf{y}})
+}{
+H(\mathbf{y})+H(\hat{\mathbf{y}})
+}。
+\end{equation}
+AMI 进一步对基于偶然性的互信息进行了修正（即随机机会期望校正）：
+\begin{equation}
+\mathrm{AMI}
+=
+\frac{
+I(\mathbf{y};\hat{\mathbf{y}})
+-
+\mathbb{E}[I(\mathbf{y};\hat{\mathbf{y}})]
+}{
+\frac{1}{2}
+\left[
+H(\mathbf{y})+H(\hat{\mathbf{y}})
+\right]
+-
+\mathbb{E}[I(\mathbf{y};\hat{\mathbf{y}})]
+}。
+\end{equation}
+
+\paragraph{V-measure。}
+V-measure 是同质性（homogeneity）$h$ 和完整性（completeness）$c$ 的调和平均数：
+\begin{equation}
+V
+=
+\frac{2hc}{h+c}。
+\end{equation}
+
+\paragraph{Fowlkes--Mallows 指数。}
+FMS 用于衡量配对聚类的一致性：
+\begin{equation}
+\mathrm{FMS}
+=
+\frac{\mathrm{TP}}
+{
+\sqrt{
+(\mathrm{TP}+\mathrm{FP})(\mathrm{TP}+\mathrm{FN})
+}
+}。
+\end{equation}
+
+令 $\mathbf{y}=\{y_i\}_{i=1}^{N}$ 表示参考标签，$\hat{\mathbf{y}}=\{\hat{y}_i\}_{i=1}^{N}$ 表示预测簇标签。
 
 \vspace{0.5em}
 
