@@ -24,8 +24,8 @@
 深聚类在不平衡空间域下容易出现 cluster collapse。为此，我们提出SMEM，一种基于MoE路由的空间多组学框架。
 首先，我们引入motif高阶图，丰富局部细胞拓扑；
 其次，模型通过图编码器与基于Transformer的空间表征，同时捕获局部和全局特征；
-最后，在信息融合阶段，引入 MoE 模块，通过动态门控，实现dynamic expert routing，将每个 spot 路由到专门化专家。
-我们还设计了稳定性感知的聚类优化策略，以缓解死簇塌陷并提升训练鲁棒性。
+最后，模型在信息融合阶段引入 MoE 模块，通过动态门控，实现dynamic expert routing，将每个 spot 路由到专门化专家；
+我们还设计了DEC稳定性感知的聚类优化策略，以缓解死簇塌陷并提升训练鲁棒性。
 大量实验表明，SMEM的聚类性能优于目前所有的最先进方法，并产生了更具连贯性和生物可解释性的空间域，为鲁棒的空间多组学解码与下游生物分析提供了有效方案。
 \end{abstract}
 
@@ -587,7 +587,9 @@ q_{ik}^{(0)}
 
 \textit{4. Dead-cluster reinitialization}
 
-为了应对可能出现的聚类塌缩的问题，SMEM 还应用了死亡聚类重初始化策略。受到K-means++ 的重播种（reseeding）机制启发，
+为应对深度聚类中常见的簇退化问题（死簇/空簇），我们设计了死簇重初始化机制：经过固定的epoch后，模型检查各簇的硬分配规模，若某簇分配的点数少于 10，则将该簇中心重新设置，并重置对应 Adam 优化器动量，确保重初始化后的中心能稳定收敛。
+ 
+受到K-means++ 的重播种（reseeding）机制启发，
 在训练轮数 $T_{\mathrm{end}}$ 之前，每隔 $T_r$ 轮，我们计算硬分配计数：
 \begin{equation}
     n_k^{(t)}
@@ -664,11 +666,11 @@ $\mathcal{L}_{\mathrm{con}}$ 强制融合嵌入与特定模态嵌入之间保持
 \label{tab:datasets}
 \begin{tabularx}{\columnwidth}{l l c c c l X}
 \toprule
-Dataset  & Spots & Genes & ADTs & Labels & Clusters \\
+Dataset  & Spots & Genes & ADTs  & Clusters \\
 \midrule
-Human lymph node A1  & 3484 & 18,085 & 31 & Manual & 10 \\
-Human lymph node D1  & 3359 & 18,085 & 31 & Manual & 11 \\
-Mouse breast cancer  & 1978 & 32,286 & 32 & Unlabeled & - \\
+Human lymph node A1  & 3484 & 18,085 & 31  & 10 \\
+Human lymph node D1  & 3359 & 18,085 & 31  & 11 \\
+Mouse breast cancer  & 1978 & 32,286 & 32  & - \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -679,150 +681,126 @@ Mouse breast cancer  & 1978 & 32,286 & 32 & Unlabeled & - \\
 它们同时利用空间坐标和多组学测量，所有方法均使用原论文或官方教程推荐参数运行，并在相同数据预处理和聚类数设置下进行比较。
 其中一些方法的简要介绍如下：
 
+GATCL：一种结合了图注意力网络（Graph Attention Network）与对比学习（Contrastive Learning）的深度学习框架，通过对比学习提升空间结构域的识别精度；
+
+MOFA+：一种基于统计学的分析框架，利用变分推断（variational inference）为多组学数据的整合构建低维潜在表示；
+
+MultiVI：一种用于分析多组学数据的概率模型，该模型能够有效改善在单模态数据集上的联合概率推断效果；
+
+TotalVI：一种针对 CITE-seq 数据设计的模型，该模型通过学习配对的 RNA 与蛋白质测量数据的联合概率表示，来实现多组学特征的有效整合；
+
+scMIC：一种深度信息融合框架。该方法采用协同学习（collaborative learning）策略，专门用于单细胞多组学数据的聚类分析；
+
+SpatialGlue：一种采用双重注意力机制（dual-attention mechanisms）的图神经网络模型；
+
+SpaFusion：该框架结合了图自编码器与 Transformer 模块，从局部和全局视角提取潜在特征；此外，它利用共识聚类（consensus clustering）策略实现精确的细胞分型；
+
+SpaMICS：一种深度子空间学习（Deep Subspace Learning）框架。
+该方法通过在多个组学层之间解耦（disentangle）共享的一致性特征与模态特异性的互补特征，来有效提升空间多组学数据的空间域识别能力。
 
 
-\subsection{Data preprocessing}
+\subsection{Data preprocessing与参数设定}
 在处理Human lymph node A1 和 Human lymph node D1 数据集时，我们延续并采用了如下的数据预处理：
 对于 RNA 模态，我们移除了在少于 10 个细胞中表达的基因，使用 Seurat v3 策略选取前 3000 个高变异基因。其中，计数矩阵按每个点的总计数 $10^4$ 归一化，进行 log 转换与标准化后投影至 100 维主成分空间；
-对于 ADT 模态，我们对每个点施加中心化对数比归一化，随后标准化并执行 PCA降维。
+对于 ADT 模态，我们对每个点施加中心化对数比（CLR）归一化，随后标准化并执行 PCA 降维至 $d_{\mathrm{ADT}}-1$ 维（其中 $d_{\mathrm{ADT}}$ 为蛋白标记物数目）。
 
-在最初图的构建方面，对于每个模态，SMEM 构建了两张互补图。
-对于空间图，基于物理点坐标，使用 $k=9$ 的 k 近邻策略构建；对于特征图，
-在模态特定的 PCA 空间中使用 $k=20$ 的 k 近邻图构建，两张图在输入图编码器前均经对称化和归一化处理。
+在图的构建方面，对于每个模态，SMEM 构建了两张互补图。
+空间图基于物理点坐标，使用 $k=9$ 的 k 近邻策略构建；特征图在模态特定的 PCA 空间中使用 $k=20$ 的 k 近邻构建。
+
+此外，对于每个模态的特征图，我们额外计算三节点 motif 共现矩阵 $\mathbf{M}_t$，该矩阵统计特征图中所有三角形闭合的频次并同样进行对称归一化。最终输入编码器的特征图为可学习参数加权的混合：$\tilde{\mathbf{A}}_{\mathrm{feat}} = k_1 \cdot \mathbf{A}_{\mathrm{feat}} + k_2 \cdot \mathbf{M}_t$，其中 $k_1, k_2$ 为可训练标量参数，初始化为 0.5。
+ 
+所有实验在单块 NVIDIA GPU 上运行（CUDA 加速），使用 PyTorch 2.2.1 实现。
+具体的参数设定见表~\ref{tab:parameters}：
+\begin{table}[htbp]
+\centering
+\caption{SMEM 主要超参数设定}
+\label{tab:parameters}
+\begin{tabular}{lcc}
+\toprule
+\textbf{参数} & \textbf{符号} & \textbf{取值} \\
+\midrule
+\multicolumn{3}{l}{\textit{网络架构}} \\
+MoE 专家数 & $E$ & 4 \\
+MoE 隐藏维度 & — & 128 \\
+\midrule
+\multicolumn{3}{l}{\textit{训练流程}} \\
+聚类训练 epoch 数 & — & 800 \\
+学习率 & $\eta$ & $10^{-3}$ \\
+优化器 & — & Adam \\
+\midrule
+\multicolumn{3}{l}{\textit{损失权重}} \\
+KL 散度权重 & $\lambda_1$ & 1.0 \\
+一致性损失权重 & $\lambda_2$ & 0.1 \\
+重建损失权重 & $w_{1\text{-}6}$ & 均为 1.0 \\
+MoE 均衡损失权重 & $\lambda_{\mathrm{bal}}$ & 0.01 \\
+簇使用正则权重 & $\lambda_{\mathrm{usage}}$ & 0.05 \\
+门控噪声乘数 & — & 1.0 \\
+\midrule
+\multicolumn{3}{l}{\textit{聚类优化}} \\
+Q 混合系数 & $\alpha_{\mathrm{mix}}$ & 0.1 \\
+Q 混合预热 epoch & — & 500 \\
+死簇重初始化周期 & — & 每 50 epoch \\
+最小簇阈值 & — & 10 个点 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 
 \subsection{评估指标}
-在评估 SMEM 的性能时，我们使用了以下指标：
-对于有标注数据集，我们使用 Adjusted Rand Index (ARI)、Normalized Mutual Information (NMI)、Adjusted Mutual Information (AMI)、聚类准确率 (ACC)、macro-F1、V-measure 和 Fowlkes–Mallows score (FMS) 评估聚类性能。
-其中，ARI是展现方法综合整合能力的最具代表性指标。
+对于包含人工标注数据的基准数据集，我们采用多种指标全面评估空间域识别的性能。
+令 $\mathbf{y}=\{y_i\}_{i=1}^{N}$ 表示由人工标注的参考标签，$\hat{\mathbf{y}}=\{\hat{y}_i\}_{i=1}^{N}$ 表示模型预测的空间结构域簇标签，
+其中 $N$ 为切片中的空间位点（spots）总数 。具体描述如下：
 
+\paragraph{调整兰德系数}
+ARI 是目前空间组学Benchmark中公认的核心指标。
+它引入了期望校正，因此能够客观地反应多模态特征融合的效果。
+
+ARI 的定义如下：
+\begin{equation}
+\mathrm{ARI}=\frac{\sum_{ij}\binom{n_{ij}}{2}-\frac{\sum_i\binom{a_i}{2}\sum_j\binom{b_j}{2}}{\binom{N}{2}}}{\frac{1}{2}\left[\sum_i\binom{a_i}{2}+\sum_j\binom{b_j}{2}\right]-\frac{\sum_i\binom{a_i}{2}\sum_j\binom{b_j}{2}}{\binom{N}{2}}}
+\end{equation}
+其中，$n_{ij}$ 表示同时属于真实类 $i$ 且被分配到预测类 $j$ 的样本数；
+$a_i = \sum_j n_{ij}$ 和 $b_j = \sum_i n_{ij}$ 分别表示真实类别 $i$ 和预测聚类 $j$ 的总样本数 。
+
+\paragraph{F1}
+F1 值作为评估指标，用于评估模型对细小结构域的识别能力：
+\begin{equation}
+\mathrm{F1}=2\times \frac{P\times R}{P+R}
+\end{equation}
+$P$（精确率，Precision）表示在预测簇中，正确属于对应真实簇的细胞所占的比例；$R$（召回率，Recall）表示在真实簇中，被准确分配到正确预测簇的细胞所占的比例。
 \paragraph{聚类准确率}
-ACC 是评估聚类结果与真实标签是否符合的最直接方法。
-由于聚类标签具有置换不变性（permutation-invariant），我们首先利用匈牙利算法（Hungarian algorithm）将预测标签与真实标签进行匹配。ACC 的定义如下：
+ACC 是评估聚类结果与真实标签是否符合的最直接方法，
+在利用匈牙利算法（Hungarian Algorithm）对聚类标签进行最优一对一映射后，计算全局的分类正确率。ACC 的定义如下：
 \begin{equation}
-\mathrm{ACC}
-=
-\frac{1}{N}
-\sum_{i=1}^{N}
-\mathbb{I}
-\left[
-y_i=\pi^{*}(\hat{y}_i)
-\right],
+\mathrm{ACC}=\frac{1}{N}\sum_{i=1}^{N}\mathbb{I}\left[y_i=\pi^{*}(\hat{y}_i)\right]
 \end{equation}
-其中 $\pi^{*}$ 表示最优标签置换，$N$ 为样本总数。
+在此公式中，$\pi^{*}$ 表示通过匈牙利算法（Hungarian Algorithm）求解出的预测标签到真实标签的最优一对一映射函数；$\mathbb{I}[\cdot]$ 为指示函数，当内部匹配条件成立时取值为 $1$，否则取值为 $0$ 。  
 
-\paragraph{宏 F1 (Macro-F1)}
-对于每个类别 $k$，精确率（Precision）和召回率（Recall）的定义如下：
-\begin{equation}
-\mathrm{Precision}_k
-=
-\frac{\mathrm{TP}_k}
-{\mathrm{TP}_k+\mathrm{FP}_k},
-\mathrm{Recall}_k
-=
-\frac{\mathrm{TP}_k}
-{\mathrm{TP}_k+\mathrm{FN}_k}。
-\end{equation}
-类级别 F1 分数（class-wise F1 score）为：
-\begin{equation}
-\mathrm{F1}_k
-=
-\frac{
-2\cdot \mathrm{Precision}_k\cdot \mathrm{Recall}_k
-}{
-\mathrm{Precision}_k+\mathrm{Recall}_k
-},
-\end{equation}
-宏 F1 值是通过对所有类别求平均值计算得到的：
-\begin{equation}
-\mathrm{F1}_{\mathrm{macro}}
-=
-\frac{1}{K}
-\sum_{k=1}^{K}
-\mathrm{F1}_k。
-\end{equation}
 
-\paragraph{调整兰德系数。}
-令 $n_{ij}$ 表示真实类别 $i$ 与预测聚类 $j$ 共有样本的数量，并令 $a_i=\sum_j n_{ij}$ 和 $b_j=\sum_i n_{ij}$。ARI 的定义如下：
-\begin{equation}
-\mathrm{ARI}
-=
-\frac{
-\sum_{ij}\binom{n_{ij}}{2}
--
-\frac{
-\sum_i\binom{a_i}{2}
-\sum_j\binom{b_j}{2}
-}{
-\binom{N}{2}
-}
-}{
-\frac{1}{2}
-\left[
-\sum_i\binom{a_i}{2}
-+
-\sum_j\binom{b_j}{2}
-\right]
--
-\frac{
-\sum_i\binom{a_i}{2}
-\sum_j\binom{b_j}{2}
-}{
-\binom{N}{2}
-}
-}。
-\end{equation}
+此外，我们还通过NMI、AMI、VMS 和 FMS等多种评估指标，来全面评估方法的性能。
 
-\paragraph{归一化互信息与调整互信息。}
-令 $I(\mathbf{y};\hat{\mathbf{y}})$ 表示真实标签与预测聚类之间的互信息，并令 $H(\cdot)$ 表示熵。NMI 的计算公式为：
-\begin{equation}
-\mathrm{NMI}
-=
-\frac{
-2I(\mathbf{y};\hat{\mathbf{y}})
-}{
-H(\mathbf{y})+H(\hat{\mathbf{y}})
-}。
-\end{equation}
-AMI 进一步对基于偶然性的互信息进行了修正（即随机机会期望校正）：
-\begin{equation}
-\mathrm{AMI}
-=
-\frac{
-I(\mathbf{y};\hat{\mathbf{y}})
--
-\mathbb{E}[I(\mathbf{y};\hat{\mathbf{y}})]
-}{
-\frac{1}{2}
-\left[
-H(\mathbf{y})+H(\hat{\mathbf{y}})
-\right]
--
-\mathbb{E}[I(\mathbf{y};\hat{\mathbf{y}})]
-}。
-\end{equation}
+\section{Results}
 
-\paragraph{V-measure。}
-V-measure 是同质性（homogeneity）$h$ 和完整性（completeness）$c$ 的调和平均数：
-\begin{equation}
-V
-=
-\frac{2hc}{h+c}。
-\end{equation}
+\subsection{聚类结果}
 
-\paragraph{Fowlkes--Mallows 指数。}
-FMS 用于衡量配对聚类的一致性：
-\begin{equation}
-\mathrm{FMS}
-=
-\frac{\mathrm{TP}}
-{
-\sqrt{
-(\mathrm{TP}+\mathrm{FP})(\mathrm{TP}+\mathrm{FN})
-}
-}。
-\end{equation}
+\paragraph{D1数据集}
+表~\ref{tab:d1} 显示了 SMEM 在 D1 数据集上的聚类结果和与其他方法的对比，包括 ARI、ACC、AMI、F1 和 FMS等指标。
+可以看出，SMEM的效果显著且在多种指标上表现出领先效果，例如
 
-令 $\mathbf{y}=\{y_i\}_{i=1}^{N}$ 表示参考标签，$\hat{\mathbf{y}}=\{\hat{y}_i\}_{i=1}^{N}$ 表示预测簇标签。
+\paragraph{D1数据集}
+\paragraph{D1数据集}
+
+\subsection{可视化}
+\paragraph{D1数据集}
+\paragraph{A1数据集}
+\paragraph{小鼠乳腺癌数据集}
+
+\subsection{生物学分析}
+\paragraph{D1数据集}
+\paragraph{A1数据集}
+\paragraph{小鼠乳腺癌数据集}
+
+
 
 \vspace{0.5em}
 
